@@ -45,7 +45,7 @@ export default function ProductsPage() {
 }
 
 function ProductsContent() {
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, user } = useCurrentUser();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -368,6 +368,7 @@ function ProductsContent() {
           unit_price: parseFloat(form.unit_price),
           color: form.color,
           material: form.material,
+          store_id: user?.store_id,
         })
         .select()
         .single();

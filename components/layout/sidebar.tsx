@@ -76,7 +76,7 @@ const navigationItems = [
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const { isAdmin, loading } = useCurrentUser();
+  const { user, isAdmin, loading } = useCurrentUser();
 
   return (
     <>
@@ -101,11 +101,17 @@ export function Sidebar() {
           {/* Logo */}
           <div className="p-6 border-b border-slate-200 bg-linear-to-r from-slate-50/50 to-transparent dark:border-slate-700/50 dark:from-slate-900/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg dark:from-blue-400 dark:to-cyan-500">
-                <Shirt className="h-6 w-6 text-white" />
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg dark:from-blue-400 dark:to-cyan-500 overflow-hidden">
+                {user?.store_logo ? (
+                  <img src={user.store_logo} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <Shirt className="h-6 w-6 text-white" />
+                )}
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-wide text-slate-900 dark:text-white">VêteMart</h1>
+                <h1 className="text-lg font-bold tracking-wide text-slate-900 dark:text-white truncate max-w-[140px]">
+                  {user?.store_name || 'VêteMart'}
+                </h1>
                 <p className="text-xs text-slate-500 font-medium dark:text-slate-400">Gestion des stocks</p>
               </div>
             </div>

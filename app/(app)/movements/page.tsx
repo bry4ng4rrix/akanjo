@@ -47,6 +47,7 @@ export default function MovementsPage() {
   const [notes, setNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductData, setSelectedProductData] = useState<any>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('');
   const supabase = createClient();
 
   // Filter products based on search
@@ -66,6 +67,19 @@ export default function MovementsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        
+        // Get current user info
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', authUser.id)
+            .single();
+          if (profile) setCurrentUserName(profile.full_name);
+        }
+
         const { data: movementsData } = await supabase
           .from('stock_movements')
           .select(`
@@ -267,7 +281,7 @@ export default function MovementsPage() {
             <DialogHeader>
               <DialogTitle>Ajouter un mouvement de stock</DialogTitle>
               <DialogDescription>
-                Enregistrez une entrée ou une sortie de stock
+                Enregistrez une entrée ou une sortie de stock (par {currentUserName || 'Utilisateur'})
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleAddMovement} className="space-y-4">
@@ -320,7 +334,7 @@ export default function MovementsPage() {
                         <div
                           key={product.id}
                           className={`p-3 cursor-pointer hover:bg-muted transition-colors border-b last:border-b-0 ${
-                            selectedProduct === product.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                            selectedProduct === product.id ? ' border-l-4 border-l-blue-500' : ''
                           }`}
                           onClick={() => setSelectedProduct(product.id)}
                         >
@@ -360,8 +374,8 @@ export default function MovementsPage() {
                           }}
                           className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
                             selectedProductSizeId === ps.id
-                              ? 'bg-blue-100 border-blue-500 text-blue-700'
-                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                              ? 'bg-blue-800 border-blue-500 text-white'
+                              : 'bg-blue-900 text-white border-gray-200 hover:bg-gray-50'
                           }`}
                         >
                           {ps.size} ({ps.quantity})
@@ -541,6 +555,106 @@ export default function MovementsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Daily Movements */}
+      <DailyMovementsTable movements={movements} />
+  );
+}
+
+// Component to display movements grouped by day
+function DailyMovementsTable({ movements }: { movements: any[] }) {
+  const formatDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isSameDay = (d1: Date, d2: Date) =>
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate();
+    if (isSameDay(date, today)) return "Aujourd'hui";
+    if (isSameDay(date, tomorrow)) return "Demain";
+    if (isSameDay(date, yesterday)) return "Hier";
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  };
+  const grouped = movements.reduce((acc: Record<string, any[]>, movement) => {
+    const dateKey = new Date(movement.created_at).toISOString().split('T')[0];
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(movement);
+    return acc;
+  }, {});
+  const todayKey = new Date().toISOString().split('T')[0];
+  const sortedDates = Object.keys(grouped)
+    .filter((date) => date !== todayKey)
+    .sort((a, b) => b.localeCompare(a));
+  if (sortedDates.length === 0) return null;
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold tracking-tight">Mouvements par jour</h2>
+      {sortedDates.map((dateKey) => (
+        <Card key={dateKey}>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="capitalize">{formatDateLabel(dateKey)}</span>
+              <Badge variant="outline">{grouped[dateKey].length} mouvement(s)</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Heure</TableHead>
+                    <TableHead>Produit</TableHead>
+                    <TableHead>Taille</TableHead>
+                    <TableHead className="text-right">Qté</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Utilisateur</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {grouped[dateKey].map((movement: any) => (
+                    <TableRow key={movement.id}>
+                      <TableCell className="text-sm">
+                        {new Date(movement.created_at).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">{movement.products?.name}</TableCell>
+                      <TableCell className="text-sm">{movement.size || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">{movement.quantity}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={movement.type === 'entry' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
+                        >
+                          {movement.type === 'entry' ? (
+                            <>
+                              <ArrowUp className="h-3 w-3 mr-1" />Entrée
+                            </>
+                          ) : (
+                            <>
+                              <ArrowDown className="h-3 w-3 mr-1" />Sortie
+                            </>
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{movement.users?.full_name || 'Système'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
