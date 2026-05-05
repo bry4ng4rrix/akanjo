@@ -58,8 +58,8 @@ export default function DashboardPage() {
 
           products.forEach((p: any) => {
             p.product_sizes?.forEach((ps: any) => {
-              totalValue += ps.quantity * p.unit_price;
-              totalQuantity += ps.quantity;
+              totalValue += (ps.quantity || 0) * (p.unit_price || 0);
+              totalQuantity += (ps.quantity || 0);
               sizeMap[ps.size] = (sizeMap[ps.size] || 0) + ps.quantity;
               if (ps.quantity <= ps.reorder_level) {
                 lowStockCount++;
@@ -94,7 +94,8 @@ export default function DashboardPage() {
           const categoryMap: Record<string, number> = {};
           products.forEach((p: any) => {
             const catName = p.categories?.name || 'Sans catégorie';
-            categoryMap[catName] = (categoryMap[catName] || 0) + totalQuantity;
+            const pQty = p.product_sizes?.reduce((sum: number, ps: any) => sum + (ps.quantity || 0), 0) || 0;
+            categoryMap[catName] = (categoryMap[catName] || 0) + pQty;
           });
 
           setCategoryDistribution(
@@ -185,7 +186,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="text-2xl font-bold">
-                  {(stats.totalValue / 1000000).toFixed(1)}M Ar
+                  {new Intl.NumberFormat('fr-MG', { style: 'currency', currency: 'MGA', minimumFractionDigits: 0 }).format(stats.totalValue).replace('MGA', 'Ar')}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Valeur totale de l&apos;inventaire

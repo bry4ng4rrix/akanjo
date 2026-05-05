@@ -75,11 +75,11 @@ export default function ProductsPage() {
     supplier_id: '',
     location: '',
     unit_price: '',
-    status: 'in_stock',
     color: '',
     material: '',
     size: '',
     quantity: 0,
+    reorder_level: 5,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -360,7 +360,6 @@ export default function ProductsPage() {
           supplier_id: form.supplier_id || null,
           location: form.location,
           unit_price: parseFloat(form.unit_price),
-          status: form.status,
           color: form.color,
           material: form.material,
         })
@@ -384,10 +383,27 @@ export default function ProductsPage() {
         product_id: productData.id,
         size: form.size,
         quantity: parseInt(form.quantity.toString()) || 0,
-        reorder_level: 5,
+        reorder_level: parseInt(form.reorder_level.toString()) || 5,
       }];
 
-      await supabase.from('product_sizes').insert(sizesData);
+      const { data: insertedSizes, error: sizesError } = await supabase
+        .from('product_sizes')
+        .insert(sizesData)
+        .select();
+
+      if (sizesError) throw sizesError;
+
+      // Log initial stock movement if quantity > 0
+      if (insertedSizes && insertedSizes.length > 0 && form.quantity > 0) {
+        await supabase.from('stock_movements').insert({
+          product_id: productData.id,
+          product_size_id: insertedSizes[0].id,
+          size: form.size,
+          type: 'entry',
+          quantity: parseInt(form.quantity.toString()),
+          notes: 'Stock initial',
+        });
+      }
 
       toast.success('Produit ajouté avec succès');
       setForm({
@@ -398,11 +414,11 @@ export default function ProductsPage() {
         supplier_id: '',
         location: '',
         unit_price: '',
-        status: 'in_stock',
         color: '',
         material: '',
         size: '',
         quantity: 0,
+        reorder_level: 5,
       });
       setImageFile(null);
       setDialogOpen(false);
@@ -418,6 +434,49 @@ export default function ProductsPage() {
       toast.error('Erreur lors de l\'ajout du produit');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) return;
+    if (!editingProduct.sku || !editingProduct.name || !editingProduct.category_id || !editingProduct.unit_price) {
+      toast.error('Veuillez remplir les champs obligatoires');
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const { error: productError } = await supabase
+        .from('products')
+        .update({
+          sku: editingProduct.sku,
+          name: editingProduct.name,
+          description: editingProduct.description,
+          category_id: editingProduct.category_id,
+          supplier_id: editingProduct.supplier_id || null,
+          location: editingProduct.location,
+          unit_price: parseFloat(editingProduct.unit_price),
+          color: editingProduct.color,
+          material: editingProduct.material,
+        })
+        .eq('id', editingProduct.id);
+
+      if (productError) throw productError;
+
+      toast.success('Produit modifié avec succès');
+      setEditDialogOpen(false);
+
+      // Refresh
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('*, categories:category_id(name), product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
+        .order('name');
+      if (productsData) setProducts(productsData);
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error('Erreur lors de la modification du produit');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -568,32 +627,18 @@ export default function ProductsPage() {
                     onChange={(e) => setForm({ ...form, material: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                    <SelectTrigger id="status" className="focus-visible:ring-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in_stock">En stock</SelectItem>
-                      <SelectItem value="low">Faible</SelectItem>
-                      <SelectItem value="out_of_stock">Rupture</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Size and Quantity */}
                 <div className="md:col-span-2 space-y-4 border-t pt-4 mt-2">
-                  <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Taille et Quantité</Label>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stock et Limites</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="size" className="text-sm font-medium">Taille *</Label>
                       <Select
                         value={form.size}
                         onValueChange={(v) => setForm({ ...form, size: v })}
                       >
                         <SelectTrigger id="size" className="focus-visible:ring-2">
-                          <SelectValue placeholder="Choisir une taille" />
+                          <SelectValue placeholder="Taille" />
                         </SelectTrigger>
                         <SelectContent>
                           {SIZES.map((size) => (
@@ -604,8 +649,8 @@ export default function ProductsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="quantity" className="text-sm font-medium">Nombre (Quantité) *</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity" className="text-sm font-medium">Quantité actuelle *</Label>
                       <Input
                         id="quantity"
                         type="number"
@@ -614,6 +659,18 @@ export default function ProductsPage() {
                         className="focus-visible:ring-2"
                         value={form.quantity || ''}
                         onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reorder_level" className="text-sm font-medium">Seuil d'alerte (Min) *</Label>
+                      <Input
+                        id="reorder_level"
+                        type="number"
+                        min="0"
+                        placeholder="Ex: 5"
+                        className="focus-visible:ring-2"
+                        value={form.reorder_level || ''}
+                        onChange={(e) => setForm({ ...form, reorder_level: parseInt(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
@@ -797,6 +854,108 @@ export default function ProductsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le produit</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du produit ci-dessous.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingProduct && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-sku" className="text-sm font-medium">SKU *</Label>
+                <Input
+                  id="edit-sku"
+                  className="focus-visible:ring-2"
+                  value={editingProduct.sku || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-name" className="text-sm font-medium">Nom du produit *</Label>
+                <Input
+                  id="edit-name"
+                  className="focus-visible:ring-2"
+                  value={editingProduct.name || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-description" className="text-sm font-medium">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  className="resize-none focus-visible:ring-2"
+                  rows={3}
+                  value={editingProduct.description || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-category" className="text-sm font-medium">Catégorie *</Label>
+                <Select
+                  value={editingProduct.category_id || ''}
+                  onValueChange={(v) => setEditingProduct({ ...editingProduct, category_id: v })}
+                >
+                  <SelectTrigger id="edit-category" className="focus-visible:ring-2">
+                    <SelectValue placeholder="Choisir une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-price" className="text-sm font-medium">Prix unitaire (Ar) *</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  className="focus-visible:ring-2"
+                  value={editingProduct.unit_price || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, unit_price: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-color" className="text-sm font-medium">Couleur</Label>
+                <Input
+                  id="edit-color"
+                  className="focus-visible:ring-2"
+                  value={editingProduct.color || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, color: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-material" className="text-sm font-medium">Matière</Label>
+                <Input
+                  id="edit-material"
+                  className="focus-visible:ring-2"
+                  value={editingProduct.material || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, material: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleUpdateProduct} disabled={editSaving}>
+              {editSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Enregistrer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

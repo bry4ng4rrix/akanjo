@@ -42,6 +42,8 @@ export default function MovementsPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [movementType, setMovementType] = useState<'entry' | 'exit'>('entry');
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedProductSizeId, setSelectedProductSizeId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +60,8 @@ export default function MovementsPage() {
   useEffect(() => {
     const product = products.find((p) => p.id === selectedProduct);
     setSelectedProductData(product || null);
+    setSelectedSize('');
+    setSelectedProductSizeId('');
   }, [selectedProduct, products]);
 
   useEffect(() => {
@@ -75,7 +79,7 @@ export default function MovementsPage() {
 
         const { data: productsData } = await supabase
           .from('products')
-          .select('id, name, sku, quantity');
+          .select('id, name, sku, product_sizes(id, size, quantity, reorder_level)');
 
         if (movementsData) setMovements(movementsData);
         if (productsData) setProducts(productsData);
@@ -116,8 +120,8 @@ export default function MovementsPage() {
   const handleAddMovement = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedProduct || !quantity) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!selectedProduct || !selectedProductSizeId || !quantity) {
+      toast.error('Veuillez sélectionner un produit, une taille et une quantité');
       return;
     }
 
@@ -128,19 +132,19 @@ export default function MovementsPage() {
     }
 
     try {
-      // Get current product data
-      const { data: productData } = await supabase
-        .from('products')
-        .select('quantity, name')
-        .eq('id', selectedProduct)
+      // Get current product_size data
+      const { data: sizeData } = await supabase
+        .from('product_sizes')
+        .select('quantity')
+        .eq('id', selectedProductSizeId)
         .single();
 
-      if (!productData) {
-        toast.error('Produit non trouvé');
+      if (!sizeData) {
+        toast.error('Taille non trouvée pour ce produit');
         return;
       }
 
-      const currentStock = productData.quantity || 0;
+      const currentStock = sizeData.quantity || 0;
 
       // Check stock for exit movements
       if (movementType === 'exit') {
@@ -149,12 +153,12 @@ export default function MovementsPage() {
           return;
         }
 
-        // Update product quantity (reduce)
+        // Update product_size quantity (reduce)
         const newQuantity = currentStock - qty;
         const { error: updateError } = await supabase
-          .from('products')
+          .from('product_sizes')
           .update({ quantity: newQuantity })
-          .eq('id', selectedProduct);
+          .eq('id', selectedProductSizeId);
 
         if (updateError) {
           toast.error('Erreur lors de la mise à jour du stock');
@@ -164,9 +168,9 @@ export default function MovementsPage() {
         // Entry movement - increase stock
         const newQuantity = currentStock + qty;
         const { error: updateError } = await supabase
-          .from('products')
+          .from('product_sizes')
           .update({ quantity: newQuantity })
-          .eq('id', selectedProduct);
+          .eq('id', selectedProductSizeId);
 
         if (updateError) {
           toast.error('Erreur lors de la mise à jour du stock');
@@ -174,12 +178,14 @@ export default function MovementsPage() {
         }
       }
 
-      // Add movement record
+      // Add movement record with product_size_id and size
       const { error } = await supabase
         .from('stock_movements')
         .insert([
           {
             product_id: selectedProduct,
+            product_size_id: selectedProductSizeId,
+            size: selectedSize,
             type: movementType,
             quantity: qty,
             notes: notes || null,
@@ -193,12 +199,14 @@ export default function MovementsPage() {
 
       toast.success(
         movementType === 'exit'
-          ? `Sortie de ${qty} unités enregistrée. Stock restant: ${productData.quantity - qty}`
-          : `Entrée de ${qty} unités enregistrée. Nouveau stock: ${productData.quantity + qty}`
+          ? `Sortie de ${qty} unités (${selectedSize}) enregistrée. Stock restant: ${currentStock - qty}`
+          : `Entrée de ${qty} unités (${selectedSize}) enregistrée. Nouveau stock: ${currentStock + qty}`
       );
-      
+
       setOpenDialog(false);
       setSelectedProduct('');
+      setSelectedSize('');
+      setSelectedProductSizeId('');
       setQuantity('');
       setNotes('');
       setMovementType('entry');
@@ -218,7 +226,7 @@ export default function MovementsPage() {
 
       const { data: productsData } = await supabase
         .from('products')
-        .select('id, name, sku, quantity');
+        .select('id, name, sku, product_sizes(id, size, quantity, reorder_level)');
 
       if (movementsData) setMovements(movementsData);
       if (productsData) setProducts(productsData);
@@ -303,48 +311,78 @@ export default function MovementsPage() {
                       Aucun produit trouvé
                     </p>
                   ) : (
-                    filteredProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className={`p-3 cursor-pointer hover:bg-muted transition-colors border-b last:border-b-0 ${
-                          selectedProduct === product.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                        }`}
-                        onClick={() => setSelectedProduct(product.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-sm">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">{product.sku}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={product.quantity > 10 ? 'default' : product.quantity > 0 ? 'secondary' : 'destructive'}>
-                              <Package className="h-3 w-3 mr-1" />
-                              {product.quantity}
-                            </Badge>
-                            {selectedProduct === product.id && (
-                              <span className="text-xs text-blue-600 font-medium">Sélectionné</span>
-                            )}
+                    filteredProducts.map((product) => {
+                      const totalQty = product.product_sizes?.reduce((s: number, ps: any) => s + (ps.quantity || 0), 0) || 0;
+                      return (
+                        <div
+                          key={product.id}
+                          className={`p-3 cursor-pointer hover:bg-muted transition-colors border-b last:border-b-0 ${
+                            selectedProduct === product.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                          }`}
+                          onClick={() => setSelectedProduct(product.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-sm">{product.name}</p>
+                              <p className="text-xs text-muted-foreground">{product.sku}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={totalQty > 10 ? 'default' : totalQty > 0 ? 'secondary' : 'destructive'}>
+                                <Package className="h-3 w-3 mr-1" />
+                                {totalQty}
+                              </Badge>
+                              {selectedProduct === product.id && (
+                                <span className="text-xs text-blue-600 font-medium">Sélectionné</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
-                {selectedProductData && (
+
+                {/* Size selector */}
+                {selectedProductData && selectedProductData.product_sizes?.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Taille</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProductData.product_sizes.map((ps: any) => (
+                        <button
+                          key={ps.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSize(ps.size);
+                            setSelectedProductSizeId(ps.id);
+                          }}
+                          className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+                            selectedProductSizeId === ps.id
+                              ? 'bg-blue-100 border-blue-500 text-blue-700'
+                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {ps.size} ({ps.quantity})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedProductSizeId && (
                   <div className={`p-2 rounded-md text-sm ${
-                    movementType === 'exit' && selectedProductData.quantity <= 0
+                    movementType === 'exit' && (selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0) <= 0
                       ? 'bg-red-50 text-red-700'
-                      : movementType === 'exit' && selectedProductData.quantity < 10
+                      : movementType === 'exit' && (selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0) < 10
                       ? 'bg-orange-50 text-orange-700'
                       : 'bg-blue-50 text-blue-700'
                   }`}>
                     <p className="font-medium">
-                      Stock disponible: {selectedProductData.quantity} unités
+                      Stock taille {selectedSize}: {selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0} unités
                     </p>
-                    {movementType === 'exit' && selectedProductData.quantity <= 0 && (
+                    {movementType === 'exit' && (selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0) <= 0 && (
                       <p className="text-xs mt-1">⚠️ Stock épuisé - Impossible de faire une sortie</p>
                     )}
-                    {movementType === 'exit' && selectedProductData.quantity > 0 && selectedProductData.quantity < 10 && (
+                    {movementType === 'exit' && (selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0) > 0 && (selectedProductData.product_sizes?.find((ps: any) => ps.id === selectedProductSizeId)?.quantity || 0) < 10 && (
                       <p className="text-xs mt-1">⚠️ Stock faible</p>
                     )}
                   </div>

@@ -35,7 +35,7 @@ export default function ScannerPage() {
       try {
         const { data } = await supabase
           .from('products')
-          .select('*')
+          .select('*, product_sizes(size, quantity)')
           .order('name');
 
         if (data) setProducts(data);
@@ -152,7 +152,9 @@ export default function ScannerPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <p className="text-sm text-muted-foreground">Stock actuel</p>
-                            <p className="text-2xl font-bold">{selectedProduct.quantity}</p>
+                            <p className="text-2xl font-bold">
+                              {selectedProduct.product_sizes?.reduce((s: number, ps: any) => s + (ps.quantity || 0), 0) || 0}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Prix unitaire</p>
