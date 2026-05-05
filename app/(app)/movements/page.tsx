@@ -34,7 +34,6 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, Plus, Search, Package } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-
 export default function MovementsPage() {
   const [movements, setMovements] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -178,6 +177,9 @@ export default function MovementsPage() {
         }
       }
 
+      // Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       // Add movement record with product_size_id and size
       const { error } = await supabase
         .from('stock_movements')
@@ -189,6 +191,7 @@ export default function MovementsPage() {
             type: movementType,
             quantity: qty,
             notes: notes || null,
+            user_id: currentUser?.id || null,
           },
         ]);
 

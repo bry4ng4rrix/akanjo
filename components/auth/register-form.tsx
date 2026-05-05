@@ -38,6 +38,8 @@ export function RegisterForm() {
   const [role, setRole]         = useState<'admin' | 'magasinier' | 'employer'>('admin');
   const [referredByEmail, setReferredByEmail] = useState('');
   const [storeName, setStoreName] = useState('');
+  const [storeLogo, setStoreLogo] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +51,24 @@ export function RegisterForm() {
 
     setLoading(true);
 
+    let logoUrl = null;
+    if (role === 'admin' && storeLogo) {
+      setUploadingLogo(true);
+      const fileExt = storeLogo.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('products') // Using products bucket for now or create a stores bucket
+        .upload(`logos/${fileName}`, storeLogo);
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('products')
+          .getPublicUrl(`logos/${fileName}`);
+        logoUrl = publicUrl;
+      }
+      setUploadingLogo(false);
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -59,6 +79,7 @@ export function RegisterForm() {
           status: role === 'admin' ? 'approved' : 'pending',
           referred_by_email: role !== 'admin' ? referredByEmail : null,
           store_name: role === 'admin' ? storeName : null,
+          store_logo: logoUrl,
         },
         // No emailRedirectTo → no confirmation link sent
       },

@@ -9,8 +9,17 @@ import { fr } from 'date-fns/locale';
 import { Package, Clock, ShieldAlert, Info, Check, Trash2, Bell } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { AdminGuard } from '@/components/auth/admin-guard';
 
 export default function NotificationsPage() {
+  return (
+    <AdminGuard>
+      <NotificationsContent />
+    </AdminGuard>
+  );
+}
+
+function NotificationsContent() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();

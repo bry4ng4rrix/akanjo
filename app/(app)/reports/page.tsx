@@ -39,6 +39,7 @@ import { Download, TrendingUp, TrendingDown, Package, AlertTriangle, Loader2 } f
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdminGuard } from '@/components/auth/admin-guard';
 
 interface ProductStat {
   id: string;
@@ -72,6 +73,14 @@ interface SizeDistribution {
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export default function ReportsPage() {
+  return (
+    <AdminGuard>
+      <ReportsContent />
+    </AdminGuard>
+  );
+}
+
+function ReportsContent() {
   const [stats, setStats] = useState<ProductStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'overview' | 'products' | 'categories' | 'sizes'>('overview');

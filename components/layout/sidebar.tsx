@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 const navigationItems = [
   {
@@ -40,11 +41,13 @@ const navigationItems = [
     label: 'Alertes',
     href: '/alerts',
     icon: AlertCircle,
+    adminOnly: true,
   },
   {
     label: 'Rapports',
     href: '/reports',
     icon: FileBarChart,
+    adminOnly: true,
   },
   {
     label: 'Fournisseurs',
@@ -55,11 +58,13 @@ const navigationItems = [
     label: 'Utilisateurs',
     href: '/users',
     icon: Users,
+    adminOnly: true,
   },
   {
     label: 'Notifications',
     href: '/notifications',
     icon: Bell,
+    adminOnly: true,
   },
   {
     label: 'Paramètres',
@@ -71,6 +76,7 @@ const navigationItems = [
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { isAdmin, loading } = useCurrentUser();
 
   return (
     <>
@@ -107,7 +113,7 @@ export function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigationItems.map((item) => {
+            {navigationItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
 

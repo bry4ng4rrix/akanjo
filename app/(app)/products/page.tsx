@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,8 +21,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Download, Upload, Pencil, Trash2, X, FileSpreadsheet, Loader2, Tag } from 'lucide-react';
+import { Plus, Download, Upload, Pencil, Trash2, X, FileSpreadsheet, Loader2, Tag, ImagePlus, Trash } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,11 @@ const SIZES = ['S', 'M', 'XL', 'XXL'];
 const CATEGORIES = ['Hommes', 'Femmes', 'Enfants'];
 
 export default function ProductsPage() {
+  return <ProductsContent />;
+}
+
+function ProductsContent() {
+  const { isAdmin } = useCurrentUser();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -395,6 +401,7 @@ export default function ProductsPage() {
 
       // Log initial stock movement if quantity > 0
       if (insertedSizes && insertedSizes.length > 0 && form.quantity > 0) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
         await supabase.from('stock_movements').insert({
           product_id: productData.id,
           product_size_id: insertedSizes[0].id,
@@ -402,6 +409,7 @@ export default function ProductsPage() {
           type: 'entry',
           quantity: parseInt(form.quantity.toString()),
           notes: 'Stock initial',
+          user_id: currentUser?.id || null,
         });
       }
 
@@ -532,12 +540,44 @@ export default function ProductsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="image" className="text-sm font-medium">Image du produit</Label>
-                  <div className="flex items-center gap-4">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      dragActive ? 'border-blue-500 bg-blue-50' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                    onDragLeave={() => setDragActive(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActive(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        setImageFile(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => document.getElementById('product-image-input')?.click()}
+                  >
+                    {imageFile ? (
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <ImagePlus className="h-5 w-5 text-green-500" />
+                        <span>{imageFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setImageFile(null); }}
+                          className="ml-2 text-red-500 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">Glissez-déposez une image ici ou cliquez pour parcourir</p>
+                      </>
+                    )}
                     <Input
-                      id="image"
+                      id="product-image-input"
                       type="file"
                       accept="image/*"
-                      className="cursor-pointer"
+                      className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           setImageFile(e.target.files[0]);
@@ -823,26 +863,30 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingProduct(product);
-                                setEditDialogOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setDeletingProduct(product);
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingProduct(product);
+                                    setEditDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDeletingProduct(product);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1015,27 +1059,62 @@ export default function ProductsPage() {
             </div>
 
             {/* Add New Image */}
-            {selectedProductForImages?.product_images?.length < 3 && (
+            {isAdmin && selectedProductForImages?.product_images?.length < 3 && (
               <div className="space-y-4 border-t pt-4">
                 <Label>Ajouter une nouvelle image ({selectedProductForImages.product_images.length}/3)</Label>
-                <div className="flex gap-4">
-                  <Input 
-                    type="file" 
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    dragActive ? 'border-blue-500 bg-blue-50' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragActive(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      setNewImageFile(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  onClick={() => document.getElementById('additional-image-input')?.click()}
+                >
+                  {newImageFile ? (
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <ImagePlus className="h-5 w-5 text-green-500" />
+                      <span>{newImageFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setNewImageFile(null); }}
+                        className="ml-2 text-red-500 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">Glissez-déposez une image ici ou cliquez pour parcourir</p>
+                    </>
+                  )}
+                  <Input
+                    id="additional-image-input"
+                    type="file"
                     accept="image/*"
+                    className="hidden"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         setNewImageFile(e.target.files[0]);
                       }
                     }}
                   />
-                  <Button 
-                    onClick={handleAddAdditionalImage} 
-                    disabled={!newImageFile || uploadingImage}
-                  >
-                    {uploadingImage ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                    Ajouter
-                  </Button>
                 </div>
+                <Button
+                  onClick={handleAddAdditionalImage}
+                  disabled={!newImageFile || uploadingImage}
+                  className="w-full"
+                >
+                  {uploadingImage ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                  Ajouter
+                </Button>
               </div>
             )}
             {selectedProductForImages?.product_images?.length >= 3 && (
