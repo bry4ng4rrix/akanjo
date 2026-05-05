@@ -558,6 +558,7 @@ export default function MovementsPage() {
 
       {/* Daily Movements */}
       <DailyMovementsTable movements={movements} />
+    </div>
   );
 }
 
