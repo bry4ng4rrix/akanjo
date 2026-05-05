@@ -10,6 +10,8 @@ export interface CurrentUser {
   full_name: string;
   status: string;
   store_id: string | null;
+  store_name?: string | null;
+  store_logo?: string | null;
 }
 
 export function useCurrentUser() {
@@ -29,9 +31,11 @@ export function useCurrentUser() {
 
         const { data: profile } = await supabase
           .from('users')
-          .select('role, full_name, status, store_id')
+          .select('role, full_name, status, store_id, stores(name, logo_url)')
           .eq('id', authUser.id)
           .single();
+
+        const storeData = (profile as any)?.stores;
 
         setUser({
           id: authUser.id,
@@ -40,6 +44,8 @@ export function useCurrentUser() {
           full_name: profile?.full_name || authUser.user_metadata?.full_name || '',
           status: profile?.status || 'pending',
           store_id: profile?.store_id || null,
+          store_name: storeData?.name || null,
+          store_logo: storeData?.logo_url || null,
         });
       } catch (err) {
         console.error('Error fetching current user:', err);
@@ -52,5 +58,10 @@ export function useCurrentUser() {
     fetchUser();
   }, [supabase]);
 
-  return { user, loading, isAdmin: user?.role === 'admin' };
+  return { 
+    user, 
+    loading, 
+    isAdmin: user?.role === 'admin',
+    isManager: user?.role === 'admin' || user?.role === 'magasinier'
+  };
 }

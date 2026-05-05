@@ -783,7 +783,7 @@ function ProductsContent() {
                   <TableRow>
                     <TableHead className="w-16">Image</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead>Produit</TableHead>
+                    <TableHead>Nom</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Couleur</TableHead>
                     <TableHead>Total</TableHead>

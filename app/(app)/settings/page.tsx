@@ -376,7 +376,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {storeId && (
+          {userRole === 'admin' && storeId && (
             <Card className="mt-6 border-blue-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-center gap-4">
@@ -386,7 +386,7 @@ export default function SettingsPage() {
                   <div>
                     <CardTitle>Configuration du Magasin</CardTitle>
                     <CardDescription>
-                      Personnalisez l&apos;identité visuelle de votre boutique
+                      Personnalisez l&apos;identité visuelle de votre boutique (Réservé aux Admins)
                     </CardDescription>
                   </div>
                 </div>
