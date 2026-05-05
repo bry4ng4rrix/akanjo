@@ -1,0 +1,187 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                    🎉 BIENVENUE DANS VÉTEMART 🎉                   ║
+║         Système de Gestion des Stocks de Vêtements Complet        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+📌 VOUS VENEZ D'EXTRAIRE LE PROJET COMPLET!
+
+═══════════════════════════════════════════════════════════════════════
+
+⚡ DÉMARRAGE EN 3 ÉTAPES (5 minutes)
+
+1️⃣  CRÉER UN PROJET SUPABASE GRATUIT
+   └─ Aller sur: https://app.supabase.com
+   └─ Créer un nouveau projet (attendre 5-10 min)
+
+2️⃣  COPIER LES VARIABLES D'ENVIRONNEMENT
+   └─ Dans Supabase → Settings → API
+   └─ Copier ces 3 valeurs:
+      • Project URL → NEXT_PUBLIC_SUPABASE_URL
+      • Anon key → NEXT_PUBLIC_SUPABASE_ANON_KEY  
+      • Service Role Key → SUPABASE_SERVICE_ROLE_KEY
+   
+   └─ Créer un fichier ".env.local" à la racine du projet
+   └─ Coller vos valeurs dedans
+
+3️⃣  INSTALLER ET LANCER
+   ```bash
+   pnpm install
+   pnpm db:migrate
+   pnpm dev
+   ```
+   
+   └─ Ouvrir: http://localhost:3000
+
+═══════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTATION
+
+LIRE D'ABORD:
+├─ INSTALLATION.md       ← Guide détaillé d'installation
+├─ README.md             ← Vue d'ensemble du projet
+└─ FEATURES.md           ← Liste complète des fonctionnalités
+
+POUR LES DÉVELOPPEURS:
+├─ GUIDE_COMPLET.md      ← Guide technique complet
+├─ TECH_CHANGES.md       ← Tous les changements apportés
+└─ PROJECT_STRUCTURE.md  ← Structure du projet
+
+═══════════════════════════════════════════════════════════════════════
+
+✨ PRINCIPALES FONCTIONNALITÉS
+
+✅ Gestion complète des stocks de vêtements
+✅ Catégories: Hommes, Femmes, Enfants
+✅ Tailles: S, M, XL, XXL
+✅ Images avec QR codes uniques
+✅ Scan des QR codes pour identification rapide
+✅ Dashboard avec 4 graphiques analytiques
+✅ Alertes de stock bas en temps réel
+✅ 5 types de rapports exportables (Excel/PDF)
+✅ Historique complet des mouvements
+✅ Gestion des fournisseurs
+✅ Gestion des utilisateurs et permissions
+✅ Système de notifications
+✅ Recherche et filtrage avancés
+✅ Responsive design (mobile/tablette/ordinateur)
+
+═══════════════════════════════════════════════════════════════════════
+
+🔑 VARIABLES D'ENVIRONNEMENT NÉCESSAIRES
+
+CRÉER UN FICHIER: .env.local
+
+CONTENU:
+───────────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_anon_xxxxxxxxxxxxx
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+───────────────────────────────────────────────────────────────────────
+
+⚠️  IMPORTANT:
+- Ne JAMAIS committer .env.local en git
+- Garder le SERVICE_ROLE_KEY secret!
+- Les autres variables sont publiques (utilisées côté client)
+
+═══════════════════════════════════════════════════════════════════════
+
+🛠️  COMMANDES UTILES
+
+Développement:
+   pnpm dev                    # Démarrer le serveur de dev
+   pnpm build                  # Construire pour production
+   pnpm start                  # Lancer la version production
+
+Base de données:
+   pnpm db:migrate             # Appliquer les migrations
+   pnpm db:migrate:status      # Voir le statut des migrations
+   pnpm db:seed                # Charger les données d'exemple
+   pnpm db:reset               # Réinitialiser complètement
+
+Qualité du code:
+   pnpm lint                   # Vérifier le code
+
+═══════════════════════════════════════════════════════════════════════
+
+🚀 DÉPLOIEMENT
+
+Option 1: VERCEL (Recommandé - gratuit)
+   1. Push le code sur GitHub
+   2. Connecter GitHub à Vercel
+   3. Ajouter les 3 variables d'env dans Settings
+   4. Déployer!
+
+Option 2: Autre plateforme
+   1. Construire: pnpm build
+   2. Lancer: pnpm start
+   3. Ajouter les variables d'env
+
+═══════════════════════════════════════════════════════════════════════
+
+❓ BESOIN D'AIDE?
+
+Problème?
+   ├─ Lire INSTALLATION.md (Dépannage)
+   ├─ Vérifier les logs Supabase
+   ├─ Vérifier les variables d'env
+   └─ Redémarrer le serveur
+
+Features?
+   └─ Lire FEATURES.md pour la liste complète
+
+Architecture?
+   └─ Lire PROJECT_STRUCTURE.md
+
+Modifications?
+   └─ Lire TECH_CHANGES.md
+
+═══════════════════════════════════════════════════════════════════════
+
+📊 APERÇU DU PROJET
+
+Stack: Next.js 14 + Supabase + shadcn/ui + Tailwind CSS
+Langage: TypeScript
+Gestion: pnpm
+Node: 18+ (LTS)
+
+Pages principales:
+   🏠 Dashboard        - Statistiques et graphiques
+   👕 Vêtements       - Gestion des produits + images
+   🚨 Alertes         - Stock bas
+   📈 Rapports        - Export Excel/PDF
+   📝 Mouvements      - Historique
+   🚚 Fournisseurs    - Gestion des sources
+   👥 Utilisateurs    - Gestion des comptes
+   🔔 Notifications   - Messages
+   ⚙️  Paramètres      - Configuration
+
+═══════════════════════════════════════════════════════════════════════
+
+✅ CHECKLIST DE DÉMARRAGE
+
+[ ] Créer un projet Supabase (https://app.supabase.com)
+[ ] Copier les 3 clés API Supabase
+[ ] Créer .env.local avec les clés
+[ ] Exécuter: pnpm install
+[ ] Exécuter: pnpm db:migrate
+[ ] Exécuter: pnpm dev
+[ ] Ouvrir: http://localhost:3000
+[ ] Tester l'application
+[ ] (Optionnel) Déployer sur Vercel
+
+═══════════════════════════════════════════════════════════════════════
+
+🎯 PROCHAINES ÉTAPES
+
+1. Lire INSTALLATION.md pour les détails complets
+2. Démarrer le développement
+3. Personlicher les paramètres (Settings)
+4. Ajouter vos premiers vêtements
+5. Scanner les QR codes
+6. Exporter des rapports
+
+═══════════════════════════════════════════════════════════════════════
+
+Bon travail! 🚀
+
+Questions? Consultez la documentation complète dans le projet.

@@ -1,0 +1,88 @@
+================================================================================
+VARIABLES D'ENVIRONNEMENT NÉCESSAIRES POUR VêteMart
+================================================================================
+
+⚠️  IMPORTANT: Ces 3 variables OBLIGATOIRES doivent être dans un fichier 
+                `.env.local` à la racine du projet
+
+================================================================================
+1. NEXT_PUBLIC_SUPABASE_URL
+================================================================================
+Type:     URL
+Où:       Supabase Dashboard → Settings → API → Project URL
+Format:   https://xxxxxxxx.supabase.co
+Exemple:  https://abcdefgh.supabase.co
+
+
+================================================================================
+2. NEXT_PUBLIC_SUPABASE_ANON_KEY
+================================================================================
+Type:     Clé publique (JWT)
+Où:       Supabase Dashboard → Settings → API → anon (public) key
+Format:   sb_anon_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Exemple:  sb_anon_aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV
+
+
+================================================================================
+3. SUPABASE_SERVICE_ROLE_KEY
+================================================================================
+Type:     Clé secrète (JWT) - ⚠️  NE PAS COMMITTER
+Où:       Supabase Dashboard → Settings → API → service_role key
+Format:   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxxxxxxxxxxxxxx
+Exemple:  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxx
+
+
+================================================================================
+FICHIER .env.local - TEMPLATE À COPIER/COLLER
+================================================================================
+
+NEXT_PUBLIC_SUPABASE_URL=YOUR_URL_HERE
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY_HERE
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY_HERE
+
+
+================================================================================
+INSTRUCTIONS RAPIDES
+================================================================================
+
+1. Créer un projet Supabase: supabase.com → New Project
+2. Dans Settings → API, copier les 3 valeurs ci-dessus
+3. Créer .env.local à la racine
+4. Coller les valeurs (remplacer YOUR_XXX_HERE)
+5. Exécuter: pnpm db:migrate
+6. Exécuter: pnpm dev
+7. Se connecter sur http://localhost:3000
+
+================================================================================
+CHECKLIST
+================================================================================
+
+□ Supabase Project créé
+□ 3 clés API copiées
+□ Fichier .env.local créé
+□ Valeurs dans .env.local
+□ pnpm db:migrate exécuté ✓
+□ pnpm dev démarré ✓
+□ http://localhost:3000 accessible ✓
+
+================================================================================
+⚠️  SÉCURITÉ
+================================================================================
+
+❌ Ne commitez JAMAIS .env.local en Git
+❌ Ne sharez JAMAIS SUPABASE_SERVICE_ROLE_KEY publiquement
+✅ Utilisez .gitignore (déjà configuré)
+✅ Les NEXT_PUBLIC_* peuvent être publics
+
+
+================================================================================
+BESOIN D'AIDE?
+================================================================================
+
+Lire les fichiers (dans cet ordre):
+1. DEMARRAGE_RAPIDE.md (5 minutes)
+2. SETUP_FINAL.md (guide complet)
+3. ENV_VARIABLES.md (détails variables)
+4. SUPABASE_SETUP.md (configuration Supabase)
+
+================================================================================

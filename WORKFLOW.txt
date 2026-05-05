@@ -1,0 +1,206 @@
+================================================================================
+                    WORKFLOW COMPLET - VêteMart
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          CONFIGURATION INITIALE                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 1: Créer un projet Supabase                      ⏱️  2-3 minutes      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. Allez sur https://supabase.com                                           │
+│ 2. Cliquez "New Project"                                                    │
+│ 3. Remplissez les infos (nom, password, région)                             │
+│ 4. Attendez la création                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 2: Copier les 3 clés API                          ⏱️  1 minute        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. Settings → API                                                           │
+│ 2. Copier NEXT_PUBLIC_SUPABASE_URL                                          │
+│ 3. Copier NEXT_PUBLIC_SUPABASE_ANON_KEY                                     │
+│ 4. Copier SUPABASE_SERVICE_ROLE_KEY                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 3: Créer .env.local                               ⏱️  1 minute        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. À la racine du projet, créer fichier .env.local                          │
+│ 2. Coller les 3 clés API                                                    │
+│ 3. Sauvegarder le fichier                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 4: Appliquer les migrations                       ⏱️  30 secondes     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Exécuter dans le terminal:                                                  │
+│                                                                              │
+│     pnpm db:migrate                                                         │
+│                                                                              │
+│ ✔️  Voir le message "1 migration(s) applied successfully"                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 5: Lancer le serveur                              ⏱️  30 secondes     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Exécuter dans le terminal:                                                  │
+│                                                                              │
+│     pnpm dev                                                                │
+│                                                                              │
+│ ✔️  Voir le message "▲ Next.js started"                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+                            🎉 TERMINÉ! 🎉
+                         http://localhost:3000
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          UTILISATION DE L'APP                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────┐
+│  LOGIN PAGE          │
+│ (email + password)   │
+└──────────┬───────────┘
+           │
+           ├─ ✅ Créer compte dans Supabase Auth d'abord
+           │
+           ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  DASHBOARD (/)                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • 4 KPI Cards (valeur, produits, quantité, stock faible)                   │
+│ • 4 Charts (mouvements, tailles, distribution)                             │
+│ • Historique des mouvements                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+           │
+           ├──────────────────────┬──────────────────────┬────────────────────┐
+           ↓                      ↓                      ↓                    ↓
+┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────┐ ┌──────────────┐
+│ VÊTEMENTS           │ │ MOUVEMENTS          │ │ FOURNISSEURS    │ │ UTILISATEURS │
+├──────────────────────┤ ├──────────────────────┤ ├──────────────────┤ ├──────────────┤
+│ • Voir produits     │ │ • Ajouter entrée    │ │ • CRUD          │ │ • Gestion    │
+│ • Ajouter produit   │ │ • Ajouter sortie    │ │ • Par taille    │ │   utilisateurs
+│ • Modifier produit  │ │ • Par taille        │ │ • Historique    │ │ • Rôles      │
+│ • Supprimer produit │ │ • Notes             │ │                 │ │              │
+│ • Par taille        │ │ • Historique        │ │                 │ │              │
+│ • Export Excel      │ │                     │ │                 │ │              │
+│ • Filtre/Recherche  │ │                     │ │                 │ │              │
+└──────────────────────┘ └──────────────────────┘ └──────────────────┘ └──────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          FLUX DE DONNÉES                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────┐
+│ User Interface  │
+│  (React/Next)   │
+└────────┬────────┘
+         │
+         ├─ FETCH (GET) → Lire données
+         │
+         └─ POST/PUT/DELETE → Modifier données
+                 │
+                 ↓
+        ┌───────────────────┐
+        │  Supabase API     │
+        │  (REST/GraphQL)   │
+        └────────┬──────────┘
+                 │
+                 ├─ RLS Policies (Sécurité)
+                 │
+                 ↓
+        ┌───────────────────┐
+        │  PostgreSQL DB    │
+        │  (Supabase)       │
+        └────────┬──────────┘
+                 │
+                 ├─ products table
+                 ├─ product_sizes table
+                 ├─ stock_movements table
+                 ├─ categories table
+                 └─ ... autres tables
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          STRUCTURE DB                                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+products (produits vêtements)
+├─ id (UUID)
+├─ sku (code unique)
+├─ name (nom)
+├─ category_id (→ categories)
+├─ color (couleur)
+├─ material (matière)
+├─ unit_price (prix)
+└─ status (in_stock, low, out_of_stock)
+
+product_sizes (tailles par produit)
+├─ id (UUID)
+├─ product_id (→ products)
+├─ size (S, M, XL, XXL)
+├─ quantity (quantité)
+└─ reorder_level (seuil)
+
+stock_movements (historique)
+├─ id (UUID)
+├─ product_id (→ products)
+├─ product_size_id (→ product_sizes)
+├─ type (entry, exit)
+├─ quantity (quantité)
+├─ user_id (utilisateur)
+└─ notes (commentaires)
+
+categories (Hommes, Femmes, Enfants)
+├─ id (UUID)
+├─ name (nom)
+└─ description
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          COMMANDES IMPORTANTES                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+SETUP
+────
+pnpm install             Installer dépendances
+pnpm db:migrate         Appliquer migrations
+pnpm db:migrate:status  Voir statut migrations
+
+DÉVELOPPEMENT
+─────────────
+pnpm dev                Lancer serveur (http://localhost:3000)
+pnpm build              Builder l'app
+pnpm start              Lancer en production
+
+DIAGNOSTIC
+──────────
+pnpm db:reset           Réinitialiser DB (⚠️  supprime tout!)
+pnpm lint               Linter le code
+pnpm db:seed            Seed données de test
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          TEMPS TOTAL SETUP                                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+ÉTAPE 1: Créer Supabase           ⏱️  2-3 minutes
+ÉTAPE 2: Copier clés              ⏱️  1 minute
+ÉTAPE 3: Créer .env.local         ⏱️  1 minute
+ÉTAPE 4: Appliquer migrations     ⏱️  30 secondes
+ÉTAPE 5: Lancer serveur           ⏱️  30 secondes
+                                  ──────────────
+                          TOTAL: ~5 minutes ⚡
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          POINT DE DÉPART                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+1. Lire: LIRE_D_ABORD.md
+2. Faire: DEMARRAGE_RAPIDE.md
+3. C'est tout! L'app fonctionne! 🚀
