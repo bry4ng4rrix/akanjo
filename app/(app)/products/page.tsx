@@ -776,6 +776,9 @@ function ProductsContent() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+
+
+
           ) : (
             <div className="overflow-x-auto">
               <Table>
