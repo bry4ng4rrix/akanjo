@@ -31,7 +31,10 @@ export default function SettingsPage() {
   });
   const [storeName, setStoreName] = useState('');
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [storeLogoUrl, setStoreLogoUrl] = useState<string | null>(null);
+  const [newLogoFile, setNewLogoFile] = useState<File | null>(null);
   const [savingStore, setSavingStore] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function SettingsPage() {
             if (storeData) {
               setStoreName(storeData.name || '');
               setStoreId(storeData.id);
+              setStoreLogoUrl(storeData.logo_url || null);
             }
           }
 
@@ -191,9 +195,33 @@ export default function SettingsPage() {
 
     setSavingStore(true);
     try {
+      let logoUrl = storeLogoUrl;
+
+      if (newLogoFile) {
+        setUploadingLogo(true);
+        const fileExt = newLogoFile.name.split('.').pop();
+        const fileName = `${storeId}-${Math.random()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('products')
+          .upload(`logos/${fileName}`, newLogoFile);
+
+        if (uploadError) {
+          toast.error('Erreur lors de l\'upload du logo');
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('products')
+            .getPublicUrl(`logos/${fileName}`);
+          logoUrl = publicUrl;
+        }
+        setUploadingLogo(false);
+      }
+
       const { error } = await supabase
         .from('stores')
-        .update({ name: storeName })
+        .update({ 
+          name: storeName,
+          logo_url: logoUrl
+        })
         .eq('id', storeId);
 
       if (error) {
@@ -201,7 +229,9 @@ export default function SettingsPage() {
         return;
       }
 
-      toast.success('Nom du magasin mis à jour');
+      setStoreLogoUrl(logoUrl);
+      setNewLogoFile(null);
+      toast.success('Informations du magasin mises à jour');
     } catch (err) {
       toast.error('Erreur lors de la mise à jour');
     } finally {
@@ -347,27 +377,80 @@ export default function SettingsPage() {
           </Card>
 
           {storeId && (
-            <Card className="mt-6">
+            <Card className="mt-6 border-blue-100 shadow-sm">
               <CardHeader>
-                <CardTitle>Magasin</CardTitle>
-                <CardDescription>
-                  Modifier le nom de votre magasin
-                </CardDescription>
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Configuration du Magasin</CardTitle>
+                    <CardDescription>
+                      Personnalisez l&apos;identité visuelle de votre boutique
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpdateStore} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="storeName">Nom du magasin</Label>
-                    <Input
-                      id="storeName"
-                      value={storeName}
-                      onChange={(e) => setStoreName(e.target.value)}
-                      placeholder="Nom du magasin"
-                    />
+                <form onSubmit={handleUpdateStore} className="space-y-6">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    <div className="space-y-4 flex-1">
+                      <div className="space-y-2">
+                        <Label htmlFor="storeName">Nom de la boutique</Label>
+                        <Input
+                          id="storeName"
+                          value={storeName}
+                          onChange={(e) => setStoreName(e.target.value)}
+                          placeholder="Nom du magasin"
+                          className="max-w-md"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="storeLogo">Changer le logo</Label>
+                        <Input
+                          id="storeLogo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setNewLogoFile(e.target.files?.[0] || null)}
+                          className="max-w-md cursor-pointer"
+                        />
+                        <p className="text-[10px] text-muted-foreground italic">
+                          Format recommandé : Carré (PNG/JPG), fond transparent de préférence.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gray-50/50 min-w-[200px]">
+                      <Label className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Aperçu du logo</Label>
+                      {newLogoFile || storeLogoUrl ? (
+                        <div className="relative group h-24 w-24 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white flex items-center justify-center">
+                          <img 
+                            src={newLogoFile ? URL.createObjectURL(newLogoFile) : (storeLogoUrl || '')} 
+                            alt="Logo" 
+                            className="max-h-full max-w-full object-contain p-1"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-24 w-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-white text-gray-400">
+                          <Building2 className="h-10 w-10 opacity-20" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <Button type="submit" disabled={savingStore}>
-                    {savingStore ? 'Enregistrement...' : 'Mettre à jour le magasin'}
-                  </Button>
+
+                  <div className="pt-4 border-t">
+                    <Button type="submit" disabled={savingStore || uploadingLogo} className="bg-blue-600 hover:bg-blue-700">
+                      {savingStore || uploadingLogo ? (
+                        <>
+                          <Clock className="mr-2 h-4 w-4 animate-spin" />
+                          Enregistrement...
+                        </>
+                      ) : (
+                        'Enregistrer les changements'
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>

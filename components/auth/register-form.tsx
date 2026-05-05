@@ -162,6 +162,20 @@ export function RegisterForm() {
                   required={role === 'admin'}
                 />
               </div>
+
+              <div className="space-y-1.5 pt-2">
+                <label htmlFor="reg-store-logo" className="text-sm font-medium">
+                  Logo du magasin (optionnel)
+                </label>
+                <Input
+                  id="reg-store-logo"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setStoreLogo(e.target.files?.[0] || null)}
+                  disabled={loading}
+                  className="cursor-pointer"
+                />
+              </div>
             </div>
           )}
 
