@@ -68,7 +68,7 @@ export default function SuppliersPage() {
     try {
       const { data } = await supabase
         .from('products')
-        .select('*')
+        .select('*, product_sizes(size, quantity)')
         .eq('supplier_id', supplierId);
 
       if (data) setSupplierProducts(data);
@@ -458,7 +458,9 @@ export default function SuppliersPage() {
                                   <p className="font-medium">{product.name}</p>
                                   <p className="text-sm text-muted-foreground">{product.sku}</p>
                                 </div>
-                                <Badge>Stock: {product.quantity}</Badge>
+                                <Badge variant="outline">
+                                  Stock: {product.product_sizes?.reduce((s: number, ps: any) => s + (ps.quantity || 0), 0) ?? 0}
+                                </Badge>
                               </div>
                             </CardContent>
                           </Card>

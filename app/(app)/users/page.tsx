@@ -103,16 +103,23 @@ export default function UsersPage() {
 
   const handleUpdateStatus = async (userId: string, newStatus: string) => {
     try {
+      const updatePayload: Record<string, any> = { status: newStatus };
+
+      // When approving, also link the user to the current manager's store
+      if (newStatus === 'approved' && currentUser?.store_id) {
+        updatePayload.store_id = currentUser.store_id;
+      }
+
       const { error } = await supabase
         .from('users')
-        .update({ status: newStatus })
+        .update(updatePayload)
         .eq('id', userId);
 
       if (error) throw error;
 
       toast.success(`Statut mis à jour : ${newStatus}`);
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u))
+        prev.map((u) => (u.id === userId ? { ...u, status: newStatus, store_id: updatePayload.store_id ?? u.store_id } : u))
       );
     } catch (err: any) {
       toast.error('Erreur lors de la mise à jour: ' + err.message);
@@ -131,12 +138,6 @@ export default function UsersPage() {
         .eq('id', userId);
 
       if (error) throw error;
-
-      // Update auth metadata too
-      await supabase.rpc('update_user_role', {
-        p_user_id: userId,
-        p_role: newRole,
-      });
 
       toast.success(`Rôle mis à jour : ${newRole}`);
       setEditRoleDialogOpen(false);

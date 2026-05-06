@@ -84,7 +84,7 @@ export default function AlertsPage() {
 
       const formattedAlerts = data?.map((alert: any) => ({
         ...alert,
-        product: alert.product?.[0] || null,
+        product: alert.product || null,
       })) || [];
 
       setAlerts(formattedAlerts);
