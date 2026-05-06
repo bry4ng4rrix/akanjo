@@ -38,7 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import * as XLSX from 'xlsx';
 
 const SIZES = ['S', 'M', 'XL', 'XXL'];
-const CATEGORIES = ['Hommes', 'Femmes', 'Enfants'];
+const CATEGORIES = ['Homme', 'Femme', 'Enfant'];
 
 export default function ProductsPage() {
   return <ProductsContent />;
@@ -77,7 +77,7 @@ function ProductsContent() {
     sku: '',
     name: '',
     description: '',
-    category_id: '',
+    category: '',
     supplier_id: '',
     location: '',
     unit_price: '',
@@ -98,7 +98,6 @@ function ProductsContent() {
           .from('products')
           .select(`
             *,
-            categories:category_id(name),
             product_sizes(size, quantity, reorder_level),
             suppliers:supplier_id(name),
             product_images(id, image_url, is_primary)
@@ -129,7 +128,7 @@ function ProductsContent() {
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
 
     return matchesSearch && matchesCategory && matchesStatus;
@@ -173,7 +172,7 @@ function ProductsContent() {
         return [{
           SKU: p.sku,
           Nom: p.name,
-          Catégorie: p.categories?.name || '',
+          Catégorie: p.category || '',
           Couleur: p.color || '',
           Matière: p.material || '',
           'Prix unitaire': p.unit_price,
@@ -299,7 +298,7 @@ function ProductsContent() {
       // Refresh data
       const { data: productsData } = await supabase
         .from('products')
-        .select('*, categories:category_id(name), product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
+        .select('*, product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
         .order('name');
       if (productsData) {
         setProducts(productsData);
@@ -321,7 +320,7 @@ function ProductsContent() {
       // Refresh data
       const { data: productsData } = await supabase
         .from('products')
-        .select('*, categories:category_id(name), product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
+        .select('*, product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
         .order('name');
       if (productsData) {
         setProducts(productsData);
@@ -335,7 +334,7 @@ function ProductsContent() {
   };
 
   const handleAddProduct = async () => {
-    if (!form.sku || !form.name || !form.category_id || !form.unit_price || !form.size) {
+    if (!form.sku || !form.name || !form.category || !form.unit_price || !form.size) {
       toast.error('Veuillez remplir les champs obligatoires (incluant la taille)');
       return;
     }
@@ -362,7 +361,7 @@ function ProductsContent() {
           sku: form.sku,
           name: form.name,
           description: form.description,
-          category_id: form.category_id,
+          category: form.category,
           supplier_id: form.supplier_id || null,
           location: form.location,
           unit_price: parseFloat(form.unit_price),
@@ -419,7 +418,7 @@ function ProductsContent() {
         sku: '',
         name: '',
         description: '',
-        category_id: '',
+        category: '',
         supplier_id: '',
         location: '',
         unit_price: '',
@@ -435,7 +434,7 @@ function ProductsContent() {
       // Refresh
       const { data: productsData } = await supabase
         .from('products')
-        .select('*, categories:category_id(name), product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
+        .select('*, product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
         .order('name');
       if (productsData) setProducts(productsData);
     } catch (err) {
@@ -448,7 +447,7 @@ function ProductsContent() {
 
   const handleUpdateProduct = async () => {
     if (!editingProduct) return;
-    if (!editingProduct.sku || !editingProduct.name || !editingProduct.category_id || !editingProduct.unit_price) {
+    if (!editingProduct.sku || !editingProduct.name || !editingProduct.category || !editingProduct.unit_price) {
       toast.error('Veuillez remplir les champs obligatoires');
       return;
     }
@@ -461,7 +460,7 @@ function ProductsContent() {
           sku: editingProduct.sku,
           name: editingProduct.name,
           description: editingProduct.description,
-          category_id: editingProduct.category_id,
+          category: editingProduct.category,
           supplier_id: editingProduct.supplier_id || null,
           location: editingProduct.location,
           unit_price: parseFloat(editingProduct.unit_price),
@@ -478,7 +477,7 @@ function ProductsContent() {
       // Refresh
       const { data: productsData } = await supabase
         .from('products')
-        .select('*, categories:category_id(name), product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
+        .select('*, product_sizes(size, quantity, reorder_level), suppliers:supplier_id(name), product_images(id, image_url, is_primary)')
         .order('name');
       if (productsData) setProducts(productsData);
     } catch (err) {
@@ -621,16 +620,16 @@ function ProductsContent() {
                 <div className="space-y-2">
                   <Label htmlFor="category" className="text-sm font-medium">Catégorie *</Label>
                   <Select
-                    value={form.category_id}
-                    onValueChange={(v) => setForm({ ...form, category_id: v })}
+                    value={form.category}
+                    onValueChange={(v) => setForm({ ...form, category: v })}
                   >
                     <SelectTrigger id="category" className="focus-visible:ring-2">
                       <SelectValue placeholder="Choisir une catégorie" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -745,9 +744,9 @@ function ProductsContent() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les catégories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
+            {CATEGORIES.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {cat}
               </SelectItem>
             ))}
           </SelectContent>
@@ -834,7 +833,7 @@ function ProductsContent() {
                             <p className="text-sm text-muted-foreground">{product.material}</p>
                           </div>
                         </TableCell>
-                        <TableCell>{product.categories?.name}</TableCell>
+                        <TableCell>{product.category || '-'}</TableCell>
                         <TableCell>
                           {product.color ? (
                             <div className="flex items-center gap-2">
@@ -946,16 +945,16 @@ function ProductsContent() {
               <div className="space-y-2">
                 <Label htmlFor="edit-category" className="text-sm font-medium">Catégorie *</Label>
                 <Select
-                  value={editingProduct.category_id || ''}
-                  onValueChange={(v) => setEditingProduct({ ...editingProduct, category_id: v })}
+                  value={editingProduct.category || ''}
+                  onValueChange={(v) => setEditingProduct({ ...editingProduct, category: v })}
                 >
                   <SelectTrigger id="edit-category" className="focus-visible:ring-2">
                     <SelectValue placeholder="Choisir une catégorie" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
                       </SelectItem>
                     ))}
                   </SelectContent>
