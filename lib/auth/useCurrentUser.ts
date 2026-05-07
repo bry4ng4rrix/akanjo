@@ -62,6 +62,7 @@ export function useCurrentUser() {
     user, 
     loading, 
     isAdmin: user?.role === 'admin',
+    isSuperAdmin: user?.role === 'superadmin',
     isManager: user?.role === 'admin' || user?.role === 'magasinier'
   };
 }

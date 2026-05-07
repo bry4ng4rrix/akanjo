@@ -143,11 +143,25 @@ CREATE TRIGGER trg_product_stock_alert
 
 -- ── 6. Helper: get user role ──────────────────────────────────
 CREATE OR REPLACE FUNCTION get_user_role(p_user_id uuid)
-RETURNS TEXT
-LANGUAGE sql SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT role FROM users WHERE id = p_user_id;
-$$;
+RETURNS TEXT AS $$
+DECLARE
+  v_role TEXT;
+BEGIN
+  SELECT role INTO v_role FROM users WHERE id = p_user_id;
+  RETURN COALESCE(v_role, 'employer');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── 6.5 Helper: get user store ──────────────────────────────────
+CREATE OR REPLACE FUNCTION get_user_store(p_user_id uuid)
+RETURNS UUID AS $$
+DECLARE
+  v_store_id UUID;
+BEGIN
+  SELECT store_id INTO v_store_id FROM users WHERE id = p_user_id;
+  RETURN v_store_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ── 7. Role-based RLS on products ───────────────────────────
 -- Drop all existing product policies and rebuild with role enforcement.
@@ -192,6 +206,8 @@ CREATE POLICY "products_delete" ON products FOR DELETE
 -- ── 9. Tighten stock_movements policies ──────────────────────
 DROP POLICY IF EXISTS "stock_movements_multi_tenant_select" ON stock_movements;
 DROP POLICY IF EXISTS "stock_movements_multi_tenant_insert" ON stock_movements;
+DROP POLICY IF EXISTS "stock_movements_select" ON stock_movements;
+DROP POLICY IF EXISTS "stock_movements_insert" ON stock_movements;
 
 -- All store members can read their store's movements
 CREATE POLICY "stock_movements_select" ON stock_movements FOR SELECT

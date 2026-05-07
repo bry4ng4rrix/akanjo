@@ -35,9 +35,10 @@ export function RegisterForm() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [role, setRole]         = useState<'admin' | 'magasinier' | 'employer'>('admin');
+  const [role, setRole] = useState<'superadmin' | 'admin' | 'magasinier' | 'employer'>('admin');
   const [referredByEmail, setReferredByEmail] = useState('');
   const [storeName, setStoreName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [storeLogo, setStoreLogo] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -52,7 +53,7 @@ export function RegisterForm() {
     setLoading(true);
 
     let logoUrl = null;
-    if (role === 'admin' && storeLogo) {
+    if ((role === 'admin' || role === 'superadmin') && storeLogo) {
       setUploadingLogo(true);
       const fileExt = storeLogo.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -76,12 +77,11 @@ export function RegisterForm() {
         data: { 
           full_name: fullName,
           role: role,
-          status: role === 'admin' ? 'approved' : 'pending',
-          referred_by_email: role !== 'admin' ? referredByEmail : null,
+          status: 'pending',
           store_name: role === 'admin' ? storeName : null,
+          company_name: role === 'superadmin' ? companyName : null,
           store_logo: logoUrl,
         },
-        // No emailRedirectTo → no confirmation link sent
       },
     });
 
@@ -91,24 +91,7 @@ export function RegisterForm() {
       return;
     }
 
-    // If email confirmation is DISABLED in Supabase → session is immediately available
-    if (data.session) {
-      if (role !== 'admin') {
-        toast.success(`Compte créé — en attente d\'approbation.`);
-        router.push('/login');
-      } else {
-        toast.success('Compte créé — bienvenue !');
-        router.push('/dashboard');
-      }
-      router.refresh();
-      return;
-    }
-
-    if (role !== 'admin') {
-      toast.success('Compte créé ! En attente d\'approbation.');
-    } else {
-      toast.success('Compte créé ! Vous pouvez maintenant vous connecter.');
-    }
+    toast.success('Compte créé ! En attente d\'approbation par un administrateur.');
     router.push('/login');
   };
 
@@ -126,9 +109,13 @@ export function RegisterForm() {
             <Label className="text-sm font-medium">Type de compte</Label>
             <RadioGroup 
               value={role} 
-              onValueChange={(v) => setRole(v as 'admin' | 'magasinier' | 'employer')}
-              className="grid grid-cols-3 gap-2"
+              onValueChange={(v) => setRole(v as 'superadmin' | 'admin' | 'magasinier' | 'employer')}
+              className="grid grid-cols-2 gap-2"
             >
+              <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="superadmin" id="superadmin" />
+                <Label htmlFor="superadmin" className="cursor-pointer text-xs">Super Admin</Label>
+              </div>
               <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
                 <RadioGroupItem value="admin" id="admin" />
                 <Label htmlFor="admin" className="cursor-pointer text-xs">Admin</Label>
@@ -143,6 +130,30 @@ export function RegisterForm() {
               </div>
             </RadioGroup>
           </div>
+
+          {role === 'superadmin' && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+              <label htmlFor="reg-company-name" className="text-sm font-medium">
+                Nom de la société <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="reg-company-name"
+                  type="text"
+                  placeholder="Ma Société"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={loading}
+                  className="pl-10"
+                  required={role === 'superadmin'}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                En attente d'approbation par un administrateur existant
+              </p>
+            </div>
+          )}
 
           {role === 'admin' && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
@@ -176,10 +187,13 @@ export function RegisterForm() {
                   className="cursor-pointer"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                En attente d'approbation par un super administrateur
+              </p>
             </div>
           )}
 
-          {role !== 'admin' && (
+          {(role === 'magasinier' || role === 'employer') && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
               <label htmlFor="reg-manager-email" className="text-sm font-medium">
                 Email de l'Admin ou Manager <span className="text-red-500">*</span>
@@ -194,7 +208,7 @@ export function RegisterForm() {
                   onChange={(e) => setReferredByEmail(e.target.value)}
                   disabled={loading}
                   className="pl-10"
-                  required={role !== 'admin'}
+                  required
                 />
               </div>
               <p className="text-xs text-muted-foreground">
