@@ -14,6 +14,7 @@ import {
   Package, AlertTriangle, TrendingUp, DollarSign, Users, ShoppingBag,
   ArrowUp, ArrowDown, CheckCircle2,
 } from 'lucide-react';
+import { AIAnalysis } from '@/components/ai-analysis';
 
 const CHART_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#f97316'];
 
@@ -41,6 +42,8 @@ export default function DashboardPage() {
   const [categoryChart, setCategoryChart]   = useState<any[]>([]);
   const [recentMovements, setRecentMovements] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+  const [expiringProducts, setExpiringProducts] = useState<any[]>([]);
+  const [movementStats, setMovementStats] = useState<{fastest: any[], slowest: any[]}>({ fastest: [], slowest: [] });
 
   const getLast7Days = () => {
     const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -60,7 +63,7 @@ export default function DashboardPage() {
       // 1. Products (RLS auto-filters by store)
       const { data: products } = await supabase
         .from('products')
-        .select('id, name, sku, quantity, unit_price, reorder_level, status, category');
+        .select('id, name, sku, quantity, unit_price, reorder_level, status, category, expiry_date');
 
       // 2. Employees in the same store
       const { data: employees } = await supabase
@@ -81,7 +84,7 @@ export default function DashboardPage() {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const { data: weeklyData } = await supabase
         .from('stock_movements')
-        .select('type, quantity, created_at')
+        .select('type, quantity, created_at, products:product_id(name)')
         .gte('created_at', sevenDaysAgo.toISOString());
 
       // ── Compute KPIs ─────────────────────────────────────────
@@ -118,6 +121,17 @@ export default function DashboardPage() {
         );
 
         setLowStockProducts(lowProducts.slice(0, 8));
+
+        // ── Expiring products (within 30 days) ───────────────────
+        const today = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(today.getDate() + 30);
+        
+        const expiring = products
+          .filter(p => p.expiry_date && new Date(p.expiry_date) <= thirtyDaysFromNow)
+          .sort((a, b) => new Date(a.expiry_date!).getTime() - new Date(b.expiry_date!).getTime());
+        
+        setExpiringProducts(expiring.slice(0, 8));
       }
 
       // ── Recent movements ─────────────────────────────────────
@@ -134,6 +148,27 @@ export default function DashboardPage() {
             return { date: day.label, entrées, sorties };
           }),
         );
+      }
+
+      // ── Movement Stats for AI ──────────────────────────────
+      if (products && weeklyData) {
+        const statsMap: Record<string, { name: string; outQty: number }> = {};
+        products.forEach((p) => {
+          statsMap[p.name] = { name: p.name, outQty: 0 };
+        });
+        weeklyData.forEach((m) => {
+          if (m.type === 'exit' && m.products?.name) {
+            if (!statsMap[m.products.name]) {
+              statsMap[m.products.name] = { name: m.products.name, outQty: 0 };
+            }
+            statsMap[m.products.name].outQty += (m.quantity || 0);
+          }
+        });
+        const sorted = Object.values(statsMap).sort((a, b) => b.outQty - a.outQty);
+        setMovementStats({
+          fastest: sorted.slice(0, 5),
+          slowest: sorted.filter((s) => s.outQty === 0).slice(0, 5),
+        });
       }
     } catch (err) {
       console.error('Dashboard error:', err);
@@ -219,6 +254,12 @@ export default function DashboardPage() {
           accent={kpis.lowStockCount + kpis.outOfStockCount > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}
         />
       </div>
+
+      <AIAnalysis 
+        fastest={movementStats.fastest} 
+        slowest={movementStats.slowest} 
+        expiring={expiringProducts}
+      />
 
       {/* ── Charts ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

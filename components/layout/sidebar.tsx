@@ -28,7 +28,7 @@ const navigationItems = [
     icon: BarChart3,
   },
   {
-    label: 'Vêtements',
+    label: 'Produits',
     href: '/products',
     icon: Shirt,
   },

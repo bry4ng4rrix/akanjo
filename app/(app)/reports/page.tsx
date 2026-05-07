@@ -274,7 +274,7 @@ function ReportsContent() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total acheté</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Ajouter</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-500">

@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUp, ArrowDown, Plus, Search, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { AIAnalysis } from '@/components/ai-analysis';
 
 const GENDERS = [
   { value: 'homme',   label: 'Homme' },
@@ -124,7 +125,7 @@ export default function MovementsPage() {
           .limit(100),
         supabase
           .from('products')
-          .select('id, name, sku, quantity, reorder_level, status, product_type, product_sizes(id, gender, size, quantity)')
+          .select('id, name, sku, quantity, reorder_level, status, product_type, expiry_date, product_sizes(id, gender, size, quantity)')
           .order('name'),
       ]);
 
@@ -166,6 +167,16 @@ export default function MovementsPage() {
       slowest: sorted.filter((s) => s.outQty === 0).slice(0, 5),
     };
   }, [movements, products]);
+
+  const expiringProducts = useMemo(() => {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    return products
+      .filter(p => p.expiry_date && new Date(p.expiry_date) <= thirtyDaysFromNow)
+      .sort((a, b) => new Date(a.expiry_date!).getTime() - new Date(b.expiry_date!).getTime())
+      .slice(0, 5);
+  }, [products]);
 
   // ── Add movement ──────────────────────────────────────────────
   const handleAddMovement = async (e: React.FormEvent) => {
@@ -435,6 +446,12 @@ export default function MovementsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AIAnalysis 
+        fastest={movementStats.fastest} 
+        slowest={movementStats.slowest} 
+        expiring={expiringProducts}
+      />
 
       {/* History Table */}
       <Card>
