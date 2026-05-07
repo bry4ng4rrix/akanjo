@@ -37,6 +37,7 @@ export function RegisterForm() {
   const [loading, setLoading]   = useState(false);
   const [role, setRole] = useState<'superadmin' | 'admin' | 'magasinier' | 'employer'>('admin');
   const [referredByEmail, setReferredByEmail] = useState('');
+  const [superAdminEmail, setSuperAdminEmail] = useState('');
   const [storeName, setStoreName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [storeLogo, setStoreLogo] = useState<File | null>(null);
@@ -80,6 +81,8 @@ export function RegisterForm() {
           status: 'pending',
           store_name: role === 'admin' ? storeName : null,
           company_name: role === 'superadmin' ? companyName : null,
+          superadmin_email: role === 'admin' ? superAdminEmail : null,
+          referred_by_email: (role === 'magasinier' || role === 'employer') ? referredByEmail : null,
           store_logo: logoUrl,
         },
       },
@@ -170,8 +173,27 @@ export function RegisterForm() {
                   onChange={(e) => setStoreName(e.target.value)}
                   disabled={loading}
                   className="pl-10"
-                  required={role === 'admin'}
+                  required
                 />
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                <label htmlFor="reg-superadmin-email" className="text-sm font-medium">
+                  Email du Super Admin <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="reg-superadmin-email"
+                    type="email"
+                    placeholder="superadmin@societe.com"
+                    value={superAdminEmail}
+                    onChange={(e) => setSuperAdminEmail(e.target.value)}
+                    disabled={loading}
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5 pt-2">
