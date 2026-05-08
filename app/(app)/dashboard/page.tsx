@@ -72,10 +72,10 @@ export default function DashboardPage() {
         .neq('role', 'admin')
         .eq('status', 'approved');
 
-      // 3. Recent movements
+      // 3. Recent movements (avec utilisateur pour traçabilité)
       const { data: movementsRecent } = await supabase
         .from('stock_movements')
-        .select('id, type, quantity, created_at, products:product_id(name, sku)')
+        .select('id, type, quantity, created_at, products:product_id(name, sku), users:user_id(full_name)')
         .order('created_at', { ascending: false })
         .limit(8);
 
@@ -371,6 +371,9 @@ export default function DashboardPage() {
                         {new Date(m.created_at).toLocaleDateString('fr-FR', {
                           day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
                         })}
+                        {m.users?.full_name && (
+                          <span className="ml-1">· {m.users.full_name}</span>
+                        )}
                       </p>
                     </div>
                     <span className={`text-sm font-semibold ${

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, User, Eye, EyeOff, Building2, Users } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Eye, EyeOff, Building2, Users, Shield, ImagePlus, Upload, X } from 'lucide-react';
 
 const ERRORS: Record<string, string> = {
   'User already registered':       'Un compte existe déjà avec cet email.',
@@ -58,15 +58,12 @@ export function RegisterForm() {
       setUploadingLogo(true);
       const fileExt = storeLogo.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('products') // Using products bucket for now or create a stores bucket
+      const { error: uploadError } = await supabase.storage
+        .from('products')
         .upload(`logos/${fileName}`, storeLogo);
 
       if (!uploadError) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('products')
-          .getPublicUrl(`logos/${fileName}`);
-        logoUrl = publicUrl;
+        logoUrl = supabase.storage.from('products').getPublicUrl(`logos/${fileName}`).data.publicUrl;
       }
       setUploadingLogo(false);
     }
@@ -75,7 +72,7 @@ export function RegisterForm() {
       email,
       password,
       options: {
-        data: { 
+        data: {
           full_name: fullName,
           role: role,
           status: 'pending',
@@ -94,7 +91,12 @@ export function RegisterForm() {
       return;
     }
 
-    toast.success('Compte créé ! En attente d\'approbation par un administrateur.');
+    const msg = role === 'superadmin'
+      ? 'Demande soumise ! En attente de validation par l\'équipe.'
+      : role === 'admin'
+      ? 'Compte créé ! En attente d\'approbation par le superadministrateur.'
+      : 'Compte créé ! En attente d\'approbation par un administrateur.';
+    toast.success(msg);
     router.push('/login');
   };
 
@@ -110,74 +112,124 @@ export function RegisterForm() {
           {/* Role Selection */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Type de compte</Label>
-            <RadioGroup 
-              value={role} 
+            <RadioGroup
+              value={role}
               onValueChange={(v) => setRole(v as 'superadmin' | 'admin' | 'magasinier' | 'employer')}
               className="grid grid-cols-2 gap-2"
             >
-              <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className={`flex items-center space-x-2 border rounded-lg p-2 cursor-pointer transition-colors ${role === 'superadmin' ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30' : 'hover:bg-muted/50'}`}>
                 <RadioGroupItem value="superadmin" id="superadmin" />
-                <Label htmlFor="superadmin" className="cursor-pointer text-xs">Super Admin</Label>
+                <Label htmlFor="superadmin" className="cursor-pointer text-xs flex items-center gap-1">
+                  <Shield className="h-3 w-3 text-purple-600" />Super Admin
+                </Label>
               </div>
-              <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className={`flex items-center space-x-2 border rounded-lg p-2 cursor-pointer transition-colors ${role === 'admin' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'hover:bg-muted/50'}`}>
                 <RadioGroupItem value="admin" id="admin" />
                 <Label htmlFor="admin" className="cursor-pointer text-xs">Admin</Label>
               </div>
-              <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className={`flex items-center space-x-2 border rounded-lg p-2 cursor-pointer transition-colors ${role === 'magasinier' ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30' : 'hover:bg-muted/50'}`}>
                 <RadioGroupItem value="magasinier" id="magasinier" />
                 <Label htmlFor="magasinier" className="cursor-pointer text-xs">Magasinier</Label>
               </div>
-              <div className="flex items-center space-x-2 border rounded-lg p-2 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className={`flex items-center space-x-2 border rounded-lg p-2 cursor-pointer transition-colors ${role === 'employer' ? 'border-green-500 bg-green-50 dark:bg-green-950/30' : 'hover:bg-muted/50'}`}>
                 <RadioGroupItem value="employer" id="employer" />
                 <Label htmlFor="employer" className="cursor-pointer text-xs">Employé</Label>
               </div>
             </RadioGroup>
           </div>
 
+          {/* ── Super Admin fields ── */}
           {role === 'superadmin' && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-              <label htmlFor="reg-company-name" className="text-sm font-medium">
-                Nom de la société <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="reg-company-name"
-                  type="text"
-                  placeholder="Ma Société"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  disabled={loading}
-                  className="pl-10"
-                  required={role === 'superadmin'}
-                />
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 border border-purple-200 dark:border-purple-800 rounded-lg p-4 bg-purple-50/50 dark:bg-purple-950/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="h-4 w-4 text-purple-600" />
+                <p className="text-sm font-semibold text-purple-700 dark:text-purple-400">Compte Super Administrateur</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                En attente d'approbation par un administrateur existant
+
+              <div className="space-y-1.5">
+                <label htmlFor="reg-company-name" className="text-sm font-medium">
+                  Nom de la société <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="reg-company-name"
+                    type="text"
+                    placeholder="Ex: Groupe Akanjo SA"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    disabled={loading}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  Logo de la société (optionnel)
+                </label>
+                <div
+                  className="border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-lg p-4 text-center cursor-pointer hover:border-purple-400 transition-colors"
+                  onClick={() => document.getElementById('reg-superadmin-logo')?.click()}
+                >
+                  {storeLogo ? (
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <ImagePlus className="h-5 w-5 text-green-500" />
+                      <span className="truncate max-w-[180px]">{storeLogo.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setStoreLogo(null); }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload className="h-6 w-6 text-purple-400" />
+                      <p className="text-xs text-muted-foreground">Cliquez pour choisir un logo</p>
+                    </div>
+                  )}
+                  <input
+                    id="reg-superadmin-logo"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setStoreLogo(e.target.files?.[0] || null)}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-purple-600 dark:text-purple-400">
+                Votre demande sera examinée avant activation du compte.
               </p>
             </div>
           )}
 
+          {/* ── Admin fields ── */}
           {role === 'admin' && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-              <label htmlFor="reg-store-name" className="text-sm font-medium">
-                Nom du magasin <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="reg-store-name"
-                  type="text"
-                  placeholder="Mon Super Magasin"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  disabled={loading}
-                  className="pl-10"
-                  required
-                />
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1.5">
+                <label htmlFor="reg-store-name" className="text-sm font-medium">
+                  Nom du magasin <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="reg-store-name"
+                    type="text"
+                    placeholder="Mon Super Magasin"
+                    value={storeName}
+                    onChange={(e) => setStoreName(e.target.value)}
+                    disabled={loading}
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5 pt-2">
+              <div className="space-y-1.5">
                 <label htmlFor="reg-superadmin-email" className="text-sm font-medium">
                   Email du Super Admin <span className="text-red-500">*</span>
                 </label>
@@ -196,18 +248,41 @@ export function RegisterForm() {
                 </div>
               </div>
 
-              <div className="space-y-1.5 pt-2">
-                <label htmlFor="reg-store-logo" className="text-sm font-medium">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
                   Logo du magasin (optionnel)
                 </label>
-                <Input
-                  id="reg-store-logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setStoreLogo(e.target.files?.[0] || null)}
-                  disabled={loading}
-                  className="cursor-pointer"
-                />
+                <div
+                  className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                  onClick={() => document.getElementById('reg-store-logo')?.click()}
+                >
+                  {storeLogo ? (
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <ImagePlus className="h-5 w-5 text-green-500" />
+                      <span className="truncate max-w-[180px]">{storeLogo.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setStoreLogo(null); }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">Cliquez pour choisir un logo</p>
+                    </div>
+                  )}
+                  <input
+                    id="reg-store-logo"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setStoreLogo(e.target.files?.[0] || null)}
+                    disabled={loading}
+                  />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 En attente d'approbation par un super administrateur
@@ -215,6 +290,7 @@ export function RegisterForm() {
             </div>
           )}
 
+          {/* ── Employer / Magasinier fields ── */}
           {(role === 'magasinier' || role === 'employer') && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
               <label htmlFor="reg-manager-email" className="text-sm font-medium">

@@ -65,7 +65,7 @@ function fmtDate(d: string) {
 export default function ProductsPage() { return <ProductsContent />; }
 
 function ProductsContent() {
-  const { isAdmin, isManager, user } = useCurrentUser();
+  const { isAdmin, isAdminOrSuperAdmin, user } = useCurrentUser();
   const supabase = createClient();
 
   const [products, setProducts]   = useState<any[]>([]);
@@ -398,7 +398,7 @@ function ProductsContent() {
           <Button variant="outline" size="sm" onClick={handleExportExcel}>
             <Download className="h-4 w-4 mr-2" />Exporter
           </Button>
-          {isManager && (
+          {isAdminOrSuperAdmin && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="h-4 w-4 mr-2" />Ajouter</Button>
@@ -490,13 +490,13 @@ function ProductsContent() {
                     <TableHead>Péremption</TableHead>
                     <TableHead className="text-right">Prix</TableHead>
                     <TableHead>Statut</TableHead>
-                    {isManager && <TableHead>Actions</TableHead>}
+                    {isAdminOrSuperAdmin && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={isManager ? 9 : 8} className="text-center py-8 text-muted-foreground">Aucun produit trouvé</TableCell>
+                      <TableCell colSpan={isAdminOrSuperAdmin ? 9 : 8} className="text-center py-8 text-muted-foreground">Aucun produit trouvé</TableCell>
                     </TableRow>
                   ) : filteredProducts.map((product) => {
                     const expiry = product.product_type === 'simple' ? getExpiryInfo(product.expiry_date) : null;
@@ -555,7 +555,7 @@ function ProductsContent() {
                         <TableCell>
                           <Badge className={statusColor(product.status)}>{statusLabel(product.status)}</Badge>
                         </TableCell>
-                        {isManager && (
+                        {isAdminOrSuperAdmin && (
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="sm" onClick={() => { setEditingProduct({ ...product }); setEditDialogOpen(true); }}>
@@ -566,7 +566,7 @@ function ProductsContent() {
                                   <Layers className="h-4 w-4" />
                                 </Button>
                               )}
-                              {isAdmin && (
+                              {isAdminOrSuperAdmin && (
                                 <Button variant="ghost" size="sm" onClick={() => { setDeletingProduct(product); setDeleteDialogOpen(true); }}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -625,7 +625,7 @@ function ProductsContent() {
                 <TableRow>
                   <TableHead>Genre</TableHead><TableHead>Taille</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
-                  {isManager && <TableHead></TableHead>}
+                  {isAdminOrSuperAdmin && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -636,7 +636,7 @@ function ProductsContent() {
                     <TableCell>{genderLabel(s.gender)}</TableCell>
                     <TableCell><Badge variant="outline">{s.size}</Badge></TableCell>
                     <TableCell className="text-right font-semibold">{s.quantity ?? 0}</TableCell>
-                    {isManager && (
+                    {isAdminOrSuperAdmin && (
                       <TableCell>
                         <Button variant="ghost" size="sm" disabled={(s.quantity ?? 0) > 0} onClick={() => handleDeleteSizeVariant(s.id, s.quantity ?? 0)}>
                           <X className="h-4 w-4" />
@@ -647,7 +647,7 @@ function ProductsContent() {
                 ))}
               </TableBody>
             </Table>
-            {isManager && (
+            {isAdminOrSuperAdmin && (
               <div className="border-t pt-4 space-y-2">
                 <Label className="text-sm font-medium">Ajouter une variante</Label>
                 <div className="flex gap-2">
@@ -688,7 +688,7 @@ function ProductsContent() {
                 <div className="col-span-3 text-center py-8 text-muted-foreground bg-muted/20 rounded-md border border-dashed">Aucune image</div>
               )}
             </div>
-            {isManager && (selectedProductForImages?.product_images?.length ?? 0) < 3 && (
+            {isAdminOrSuperAdmin && (selectedProductForImages?.product_images?.length ?? 0) < 3 && (
               <div className="space-y-3 border-t pt-4">
                 <Label>Ajouter une image ({selectedProductForImages?.product_images?.length ?? 0}/3)</Label>
                 <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors" onClick={() => document.getElementById('extra-img-input')?.click()}>

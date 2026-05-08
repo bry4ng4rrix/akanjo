@@ -7,14 +7,14 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function SuperAdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdminOrSuperAdmin } = useCurrentUser();
+  const { user, loading, isSuperAdmin } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAdminOrSuperAdmin) {
+    if (!loading && !isSuperAdmin) {
       router.push('/dashboard');
     }
-  }, [loading, isAdminOrSuperAdmin, router]);
+  }, [loading, isSuperAdmin, router]);
 
   if (loading) {
     return (
@@ -24,7 +24,7 @@ export function SuperAdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAdminOrSuperAdmin) {
+  if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-screen p-6">
         <Card className="w-full max-w-md">
@@ -33,7 +33,7 @@ export function SuperAdminGuard({ children }: { children: React.ReactNode }) {
             <CardTitle>Accès refusé</CardTitle>
           </CardHeader>
           <CardContent className="text-center text-muted-foreground">
-            <p>Cette page est réservée aux administrateurs.</p>
+            <p>Cette page est réservée au Super Administrateur.</p>
             <p className="text-sm mt-2">Redirection en cours…</p>
           </CardContent>
         </Card>

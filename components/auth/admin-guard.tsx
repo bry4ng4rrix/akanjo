@@ -7,14 +7,14 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin } = useCurrentUser();
+  const { user, loading, isAdminOrSuperAdmin } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
+    if (!loading && !isAdminOrSuperAdmin) {
       router.push('/dashboard');
     }
-  }, [loading, isAdmin, router]);
+  }, [loading, isAdminOrSuperAdmin, router]);
 
   if (loading) {
     return (
@@ -24,7 +24,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdminOrSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-screen p-6">
         <Card className="w-full max-w-md">

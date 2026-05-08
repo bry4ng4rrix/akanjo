@@ -33,16 +33,20 @@ export function useCurrentUser() {
           .from('users')
           .select('role, full_name, status, store_id, stores(name, logo_url)')
           .eq('id', authUser.id)
-          .single();
+          .maybeSingle();
 
         const storeData = (profile as any)?.stores;
+
+        // Fallback to auth metadata if profile row missing or role not set
+        const meta = authUser.user_metadata ?? {};
+        const resolvedRole = profile?.role || meta.role || 'employer';
 
         setUser({
           id: authUser.id,
           email: authUser.email || '',
-          role: profile?.role || 'employer',
-          full_name: profile?.full_name || authUser.user_metadata?.full_name || '',
-          status: profile?.status || 'pending',
+          role: resolvedRole,
+          full_name: profile?.full_name || meta.full_name || '',
+          status: profile?.status || meta.status || 'pending',
           store_id: profile?.store_id || null,
           store_name: storeData?.name || null,
           store_logo: storeData?.logo_url || null,
@@ -61,9 +65,9 @@ export function useCurrentUser() {
   return { 
     user, 
     loading, 
-    isAdmin: user?.role === 'admin',
-    isSuperAdmin: user?.role === 'superadmin',
-    isAdminOrSuperAdmin: user?.role === 'admin' || user?.role === 'superadmin',
-    isManager: user?.role === 'admin' || user?.role === 'magasinier'
+    isAdmin: user?.role?.toLowerCase() === 'admin',
+    isSuperAdmin: user?.role?.toLowerCase() === 'superadmin',
+    isAdminOrSuperAdmin: user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'superadmin',
+    isManager: user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'magasinier'
   };
 }

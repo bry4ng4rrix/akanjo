@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUp, ArrowDown, Plus, Search, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIAnalysis } from '@/components/ai-analysis';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 const GENDERS = [
   { value: 'homme',   label: 'Homme' },
@@ -46,6 +47,7 @@ const GENDERS = [
 const genderLabel = (g: string) => GENDERS.find(x => x.value === g)?.label ?? g;
 
 export default function MovementsPage() {
+  const { user, isAdminOrSuperAdmin } = useCurrentUser();
   const [movements, setMovements]   = useState<any[]>([]);
   const [products, setProducts]     = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -117,12 +119,19 @@ export default function MovementsPage() {
         if (profile) setCurrentUserName(profile.full_name);
       }
 
+      let movementsQuery = supabase
+        .from('stock_movements')
+        .select('*, products:product_id(name, sku), users:user_id(full_name), product_sizes:product_size_id(gender, size)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // employer/magasinier voient uniquement leurs propres mouvements
+      if (!isAdminOrSuperAdmin && authUser) {
+        movementsQuery = movementsQuery.eq('user_id', authUser.id);
+      }
+
       const [{ data: movementsData }, { data: productsData }] = await Promise.all([
-        supabase
-          .from('stock_movements')
-          .select('*, products:product_id(name, sku), users:user_id(full_name), product_sizes:product_size_id(gender, size)')
-          .order('created_at', { ascending: false })
-          .limit(100),
+        movementsQuery,
         supabase
           .from('products')
           .select('id, name, sku, quantity, reorder_level, status, product_type, expiry_date, product_sizes(id, gender, size, quantity)')
@@ -136,7 +145,7 @@ export default function MovementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, isAdminOrSuperAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

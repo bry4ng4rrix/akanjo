@@ -17,6 +17,8 @@ import {
   AlertCircle,
   FileBarChart,
   Shield,
+  Store,
+  QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -37,6 +39,11 @@ const navigationItems = [
     label: 'Mouvements',
     href: '/movements',
     icon: TrendingUp,
+  },
+  {
+    label: 'Scanner',
+    href: '/scanner',
+    icon: QrCode,
   },
   {
     label: 'Alertes',
@@ -66,6 +73,12 @@ const navigationItems = [
     href: '/notifications',
     icon: Bell,
     adminOnly: true,
+  },
+  {
+    label: 'Magasins',
+    href: '/stores',
+    icon: Store,
+    superAdminOnly: true,
   },
   {
     label: 'Super Admin',
@@ -127,7 +140,9 @@ export function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigationItems.filter((item) => {
-              if (item.superAdminOnly && !isAdminOrSuperAdmin) return false;
+              // Pendant le chargement on affiche tout pour éviter le flash
+              if (loading) return !item.superAdminOnly;
+              if (item.superAdminOnly && !isSuperAdmin) return false;
               if (item.adminOnly && !isAdminOrSuperAdmin) return false;
               return true;
             }).map((item) => {

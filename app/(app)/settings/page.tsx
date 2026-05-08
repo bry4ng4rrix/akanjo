@@ -53,11 +53,12 @@ export default function SettingsPage() {
             .from('users')
             .select('*')
             .eq('id', authUser.id)
-            .single();
+            .maybeSingle();
 
-          setUserRole(userProfile?.role || '');
+          const resolvedRole = userProfile?.role || authUser.user_metadata?.role || '';
+          setUserRole(resolvedRole);
 
-          // Fetch store info for admin/magasinier
+          // Fetch store info pour admin et superadmin (quand ils ont un store_id)
           if (userProfile?.store_id) {
             const { data: storeData } = await supabase
               .from('stores')
@@ -71,8 +72,8 @@ export default function SettingsPage() {
             }
           }
 
-          // Fetch all users if admin or magasinier (manager)
-          if (userProfile?.role === 'admin' || userProfile?.role === 'magasinier') {
+          // Fetch all users si admin ou superadmin
+          if (userProfile?.role === 'admin' || userProfile?.role === 'superadmin' || userProfile?.role === 'magasinier') {
             const { data: allUsers } = await supabase
               .from('users')
               .select('*')
@@ -191,16 +192,22 @@ export default function SettingsPage() {
 
   const handleUpdateStore = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!storeId) return;
+    if (!storeName.trim()) {
+      toast.error('Le nom du magasin est requis');
+      return;
+    }
 
     setSavingStore(true);
     try {
       let logoUrl = storeLogoUrl;
+      let currentStoreId = storeId;
 
+      // Upload logo first if provided
       if (newLogoFile) {
         setUploadingLogo(true);
         const fileExt = newLogoFile.name.split('.').pop();
-        const fileName = `${storeId}-${Math.random()}.${fileExt}`;
+        const tempId = currentStoreId || `new-${Date.now()}`;
+        const fileName = `${tempId}-${Math.random()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('products')
           .upload(`logos/${fileName}`, newLogoFile);
@@ -216,17 +223,36 @@ export default function SettingsPage() {
         setUploadingLogo(false);
       }
 
-      const { error } = await supabase
-        .from('stores')
-        .update({ 
-          name: storeName,
-          logo_url: logoUrl
-        })
-        .eq('id', storeId);
+      if (!currentStoreId) {
+        // Create store then link admin to it
+        const { data: newStore, error: createError } = await supabase
+          .from('stores')
+          .insert({ name: storeName.trim(), logo_url: logoUrl })
+          .select()
+          .single();
 
-      if (error) {
-        toast.error('Erreur lors de la mise à jour du magasin');
-        return;
+        if (createError || !newStore) {
+          toast.error('Erreur lors de la création du magasin');
+          return;
+        }
+
+        await supabase
+          .from('users')
+          .update({ store_id: newStore.id })
+          .eq('id', user.id);
+
+        currentStoreId = newStore.id;
+        setStoreId(newStore.id);
+      } else {
+        const { error } = await supabase
+          .from('stores')
+          .update({ name: storeName.trim(), logo_url: logoUrl })
+          .eq('id', currentStoreId);
+
+        if (error) {
+          toast.error('Erreur lors de la mise à jour du magasin');
+          return;
+        }
       }
 
       setStoreLogoUrl(logoUrl);
@@ -376,7 +402,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {userRole === 'admin' && storeId && (
+          {(userRole === 'admin' || userRole === 'superadmin') && (
             <Card className="mt-6 border-blue-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-center gap-4">
@@ -386,7 +412,7 @@ export default function SettingsPage() {
                   <div>
                     <CardTitle>Configuration du Magasin</CardTitle>
                     <CardDescription>
-                      Personnalisez l&apos;identité visuelle de votre boutique (Réservé aux Admins)
+                      {storeId ? 'Personnalisez le nom et le logo de votre boutique' : 'Créez votre magasin et définissez son logo'}
                     </CardDescription>
                   </div>
                 </div>
@@ -447,7 +473,7 @@ export default function SettingsPage() {
                           Enregistrement...
                         </>
                       ) : (
-                        'Enregistrer les changements'
+                        storeId ? 'Enregistrer les changements' : 'Créer le magasin'
                       )}
                     </Button>
                   </div>

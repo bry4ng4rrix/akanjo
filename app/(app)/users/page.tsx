@@ -32,7 +32,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { Check, X, ShieldAlert, Users as UsersIcon, Shield, Briefcase, Plus, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check, X, ShieldAlert, Users as UsersIcon, Shield, Briefcase, Plus, Loader2, Building2, ImagePlus, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -51,6 +52,20 @@ export default function UsersPage() {
     password: '',
     role: 'employer',
   });
+  const [newAdminUser, setNewAdminUser] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    store_name: '',
+  });
+  const [adminLogoFile, setAdminLogoFile] = useState<File | null>(null);
+  const [adminLogoPreview, setAdminLogoPreview] = useState<string | null>(null);
+  // Admin tab — store mode
+  const [adminStoreMode, setAdminStoreMode] = useState<'existing' | 'new'>('new');
+  const [storesWithoutAdmin, setStoresWithoutAdmin] = useState<any[]>([]);
+  const [adminStoreSearch, setAdminStoreSearch] = useState('');
+  const [showStoreDropdown, setShowStoreDropdown] = useState(false);
+  const [selectedExistingStore, setSelectedExistingStore] = useState<any | null>(null);
 
   // Edit role dialog state
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
@@ -61,7 +76,19 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchStoresWithoutAdmin();
   }, []);
+
+  const fetchStoresWithoutAdmin = async () => {
+    try {
+      const [{ data: storesData }, { data: adminsData }] = await Promise.all([
+        supabase.from('stores').select('id, name, logo_url').order('name'),
+        supabase.from('users').select('store_id').eq('role', 'admin').not('store_id', 'is', null),
+      ]);
+      const assignedIds = new Set(adminsData?.map(a => a.store_id) ?? []);
+      setStoresWithoutAdmin((storesData ?? []).filter(s => !assignedIds.has(s.id)));
+    } catch { /* silent */ }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -82,12 +109,13 @@ export default function UsersPage() {
 
       setCurrentUser(profile);
 
-      // Only fetch users in the same store OR users who referred this admin/manager
       let query = supabase.from('users').select('*').order('created_at', { ascending: false });
-      
-      if (profile.role !== 'admin') {
-         // Si c'est un magasinier, on filtre un peu (ou on l'empêche de voir tout)
-         query = query.eq('store_id', profile.store_id);
+
+      if (profile.role === 'superadmin') {
+        // superadmin voit tous les utilisateurs de tous les magasins — pas de filtre
+      } else {
+        // admin, employer, magasinier → uniquement leur propre magasin
+        query = query.eq('store_id', profile.store_id);
       }
 
       const { data, error } = await query;
@@ -127,8 +155,8 @@ export default function UsersPage() {
   };
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      toast.error('Seul l\'administrateur peut modifier les rôles');
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
+      toast.error('Seul un administrateur peut modifier les rôles');
       return;
     }
     try {
@@ -217,7 +245,99 @@ export default function UsersPage() {
     }
   };
 
-  const filteredUsers = users.filter((u) => 
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    if (newAdminUser.password.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    if (adminStoreMode === 'existing' && !selectedExistingStore) {
+      toast.error('Veuillez sélectionner un magasin existant.');
+      return;
+    }
+    if (adminStoreMode === 'new' && !newAdminUser.store_name.trim()) {
+      toast.error('Le nom du magasin est requis.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { createClient: createSbClient } = await import('@supabase/supabase-js');
+      const secondary = createSbClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+      );
+
+      const { data: signUpData, error: signUpError } = await secondary.auth.signUp({
+        email: newAdminUser.email,
+        password: newAdminUser.password,
+        options: {
+          data: {
+            full_name: newAdminUser.full_name,
+            role: 'admin',
+            status: 'approved',
+            store_name: adminStoreMode === 'existing' ? selectedExistingStore.name : newAdminUser.store_name,
+          },
+        },
+      });
+
+      if (signUpError || !signUpData.user) throw new Error(signUpError?.message || 'Erreur création compte');
+
+      await new Promise((r) => setTimeout(r, 1000));
+
+      if (adminStoreMode === 'existing') {
+        await supabase
+          .from('users')
+          .update({ store_id: selectedExistingStore.id, status: 'approved', role: 'admin' })
+          .eq('id', signUpData.user.id);
+        toast.success(`Admin créé et assigné à "${selectedExistingStore.name}"`);
+      } else {
+        let logoUrl: string | null = null;
+        if (adminLogoFile) {
+          const ext = adminLogoFile.name.split('.').pop();
+          const fileName = `admin-${signUpData.user.id}-${Date.now()}.${ext}`;
+          const { error: upErr } = await supabase.storage.from('products').upload(`logos/${fileName}`, adminLogoFile);
+          if (!upErr) {
+            const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(`logos/${fileName}`);
+            logoUrl = publicUrl;
+          }
+        }
+
+        const { data: newStore, error: storeErr } = await supabase
+          .from('stores')
+          .insert({ name: newAdminUser.store_name.trim(), logo_url: logoUrl })
+          .select()
+          .single();
+
+        if (storeErr || !newStore) throw new Error('Erreur création magasin');
+
+        await supabase
+          .from('users')
+          .update({ store_id: newStore.id, status: 'approved', role: 'admin' })
+          .eq('id', signUpData.user.id);
+
+        toast.success(`Admin créé — magasin "${newAdminUser.store_name}" créé`);
+      }
+
+      setIsDialogOpen(false);
+      setNewAdminUser({ full_name: '', email: '', password: '', store_name: '' });
+      setAdminLogoFile(null);
+      setAdminLogoPreview(null);
+      setAdminStoreMode('new');
+      setSelectedExistingStore(null);
+      setAdminStoreSearch('');
+      fetchUsers();
+      fetchStoresWithoutAdmin();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const filteredUsers = users.filter((u) =>
     u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -239,7 +359,7 @@ export default function UsersPage() {
     }
   };
 
-  if (currentUser && currentUser.role === 'employer') {
+  if (currentUser && (currentUser.role === 'employer' || currentUser.role === 'magasinier')) {
     return (
       <div className="p-6">
         <Card>
@@ -267,70 +387,268 @@ export default function UsersPage() {
               Ajouter un utilisateur
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+              <DialogTitle>Ajouter un utilisateur</DialogTitle>
               <DialogDescription>
-                Créez un compte pour votre magasinier ou employé. Il sera automatiquement lié à votre magasin et approuvé.
+                Choisissez le type de compte à créer
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddUser} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Nom complet</Label>
-                <Input
-                  id="full_name"
-                  value={newUser.full_name}
-                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Adresse email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe provisoire</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  minLength={6}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Rôle</Label>
-                <Select
-                  value={newUser.role}
-                  onValueChange={(val) => setNewUser({ ...newUser, role: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un rôle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employer">Employé</SelectItem>
-                    <SelectItem value="magasinier">Magasinier</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Création...
-                  </>
-                ) : (
-                  'Créer l\'utilisateur'
-                )}
-              </Button>
-            </form>
+            <Tabs defaultValue="simple" className="pt-2">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="simple" className="flex items-center gap-2">
+                  <UsersIcon className="h-4 w-4" />
+                  Employé
+                </TabsTrigger>
+                <TabsTrigger value="admin" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Admin
+                </TabsTrigger>
+              </TabsList>
+
+              {/* ── Tab Employé / Magasinier ── */}
+              <TabsContent value="simple">
+                <form onSubmit={handleAddUser} className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Nom complet</Label>
+                    <Input
+                      id="full_name"
+                      value={newUser.full_name}
+                      onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                      placeholder="Jean Dupont"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Adresse email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      placeholder="employe@boutique.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Mot de passe provisoire</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      placeholder="••••••••"
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Rôle</Label>
+                    <Select
+                      value={newUser.role}
+                      onValueChange={(val) => setNewUser({ ...newUser, role: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionnez un rôle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employer">Employé</SelectItem>
+                        <SelectItem value="magasinier">Magasinier</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Création...</> : 'Créer l\'utilisateur'}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              {/* ── Tab Admin ── */}
+              <TabsContent value="admin">
+                <form onSubmit={handleAddAdmin} className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adm_full_name">Nom complet</Label>
+                    <Input
+                      id="adm_full_name"
+                      value={newAdminUser.full_name}
+                      onChange={(e) => setNewAdminUser({ ...newAdminUser, full_name: e.target.value })}
+                      placeholder="Marie Martin"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adm_email">Adresse email</Label>
+                    <Input
+                      id="adm_email"
+                      type="email"
+                      value={newAdminUser.email}
+                      onChange={(e) => setNewAdminUser({ ...newAdminUser, email: e.target.value })}
+                      placeholder="admin@boutique.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adm_password">Mot de passe provisoire</Label>
+                    <Input
+                      id="adm_password"
+                      type="password"
+                      value={newAdminUser.password}
+                      onChange={(e) => setNewAdminUser({ ...newAdminUser, password: e.target.value })}
+                      placeholder="••••••••"
+                      minLength={6}
+                      required
+                    />
+                  </div>
+
+                  {/* Store section */}
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-4">
+                    {/* Header + toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-blue-700 font-medium text-sm">
+                        <Building2 className="h-4 w-4" />
+                        Magasin associé
+                      </div>
+                      <div className="flex rounded-md border border-blue-200 overflow-hidden text-xs font-medium">
+                        <button
+                          type="button"
+                          onClick={() => { setAdminStoreMode('existing'); setSelectedExistingStore(null); setAdminStoreSearch(''); }}
+                          className={`px-3 py-1.5 transition-colors ${adminStoreMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                        >
+                          Existant
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAdminStoreMode('new')}
+                          className={`px-3 py-1.5 transition-colors ${adminStoreMode === 'new' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                        >
+                          Nouveau
+                        </button>
+                      </div>
+                    </div>
+
+                    {adminStoreMode === 'existing' ? (
+                      /* ── Mode : magasin existant sans admin ── */
+                      <div className="space-y-2">
+                        <Label>Magasin sans admin <span className="text-red-500">*</span></Label>
+                        {selectedExistingStore ? (
+                          <div className="flex items-center gap-3 p-2.5 rounded-md bg-white border border-blue-300">
+                            {selectedExistingStore.logo_url && (
+                              <img src={selectedExistingStore.logo_url} alt="" className="h-8 w-8 object-contain rounded shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{selectedExistingStore.name}</div>
+                            </div>
+                            <Button
+                              type="button" variant="ghost" size="sm"
+                              className="shrink-0 h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
+                              onClick={() => setSelectedExistingStore(null)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              className="pl-8 bg-white"
+                              placeholder="Rechercher un magasin…"
+                              value={adminStoreSearch}
+                              onChange={(e) => { setAdminStoreSearch(e.target.value); setShowStoreDropdown(true); }}
+                              onFocus={() => setShowStoreDropdown(true)}
+                              onBlur={() => setTimeout(() => setShowStoreDropdown(false), 150)}
+                            />
+                            {showStoreDropdown && (
+                              <div className="absolute z-50 w-full mt-1 rounded-md border bg-white shadow-lg max-h-48 overflow-y-auto">
+                                {storesWithoutAdmin
+                                  .filter(s => !adminStoreSearch || s.name.toLowerCase().includes(adminStoreSearch.toLowerCase()))
+                                  .map(store => (
+                                    <button
+                                      key={store.id}
+                                      type="button"
+                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => { setSelectedExistingStore(store); setAdminStoreSearch(''); setShowStoreDropdown(false); }}
+                                    >
+                                      {store.logo_url && <img src={store.logo_url} alt="" className="h-6 w-6 object-contain rounded shrink-0" />}
+                                      <span className="text-sm">{store.name}</span>
+                                    </button>
+                                  ))
+                                }
+                                {storesWithoutAdmin.filter(s => !adminStoreSearch || s.name.toLowerCase().includes(adminStoreSearch.toLowerCase())).length === 0 && (
+                                  <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+                                    {adminStoreSearch ? 'Aucun magasin trouvé' : 'Aucun magasin sans admin disponible'}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {storesWithoutAdmin.length === 0 && !selectedExistingStore && (
+                          <p className="text-xs text-muted-foreground italic">
+                            Tous les magasins ont déjà un admin — utilisez "Nouveau" pour en créer un.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      /* ── Mode : nouveau magasin ── */
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="adm_store">Nom du magasin <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="adm_store"
+                            value={newAdminUser.store_name}
+                            onChange={(e) => setNewAdminUser({ ...newAdminUser, store_name: e.target.value })}
+                            placeholder="Ma Boutique"
+                            className="bg-white"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Logo <span className="text-muted-foreground text-xs">(optionnel)</span></Label>
+                          <div
+                            className="border-2 border-dashed border-blue-200 rounded-lg p-4 cursor-pointer hover:border-blue-400 transition-colors bg-white flex flex-col items-center justify-center gap-2 min-h-[90px]"
+                            onClick={() => document.getElementById('adm_logo_input')?.click()}
+                          >
+                            {adminLogoPreview ? (
+                              <img src={adminLogoPreview} alt="Logo preview" className="h-14 w-14 object-contain rounded" />
+                            ) : (
+                              <>
+                                <ImagePlus className="h-7 w-7 text-blue-300" />
+                                <p className="text-xs text-muted-foreground">Cliquer pour choisir une image</p>
+                              </>
+                            )}
+                            <input
+                              id="adm_logo_input"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setAdminLogoFile(file);
+                                setAdminLogoPreview(file ? URL.createObjectURL(file) : null);
+                              }}
+                            />
+                          </div>
+                          {adminLogoPreview && (
+                            <Button type="button" variant="ghost" size="sm"
+                              className="text-red-500 hover:text-red-600 px-0 text-xs"
+                              onClick={() => { setAdminLogoFile(null); setAdminLogoPreview(null); }}>
+                              Supprimer le logo
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                    {isSubmitting
+                      ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Création...</>
+                      : adminStoreMode === 'existing' ? 'Créer l\'admin' : 'Créer l\'admin et le magasin'
+                    }
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
@@ -421,7 +739,7 @@ export default function UsersPage() {
                                 </Button>
                               </>
                             )}
-                            {currentUser?.role === 'admin' && user.id !== currentUser?.id && (
+                            {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && user.id !== currentUser?.id && (
                               <Button
                                 variant="outline"
                                 size="sm"

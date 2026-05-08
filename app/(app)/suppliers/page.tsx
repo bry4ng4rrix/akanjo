@@ -19,8 +19,10 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Mail, Phone, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useCurrentUser } from '@/lib/auth/useCurrentUser';
 
 export default function SuppliersPage() {
+  const { isAdminOrSuperAdmin } = useCurrentUser();
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -224,6 +226,7 @@ export default function SuppliersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Fournisseurs</h1>
           <p className="text-muted-foreground mt-1">Gérez votre réseau de fournisseurs</p>
         </div>
+        {isAdminOrSuperAdmin && (
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -323,6 +326,7 @@ export default function SuppliersPage() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Suppliers Grid */}
@@ -416,6 +420,7 @@ export default function SuppliersPage() {
                         </div>
                       )}
                     </div>
+                    {isAdminOrSuperAdmin && (
                     <div className="flex gap-2 pt-4 border-t">
                       <Button
                         variant="outline"
@@ -442,6 +447,7 @@ export default function SuppliersPage() {
                         Supprimer
                       </Button>
                     </div>
+                    )}
                   </TabsContent>
                   <TabsContent value="products" className="space-y-4">
                     {supplierProducts.length === 0 ? (
