@@ -83,7 +83,7 @@ const navigationItems = [
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const { user, isAdmin, isSuperAdmin, loading } = useCurrentUser();
+  const { user, isAdmin, isSuperAdmin, isAdminOrSuperAdmin, loading } = useCurrentUser();
 
   return (
     <>
@@ -127,8 +127,8 @@ export function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigationItems.filter((item) => {
-              if (item.superAdminOnly && !isSuperAdmin) return false;
-              if (item.adminOnly && !isAdmin && !isSuperAdmin) return false;
+              if (item.superAdminOnly && !isAdminOrSuperAdmin) return false;
+              if (item.adminOnly && !isAdminOrSuperAdmin) return false;
               return true;
             }).map((item) => {
               const Icon = item.icon;
