@@ -75,7 +75,7 @@ export function RegisterForm() {
         data: {
           full_name: fullName,
           role: role,
-          status: 'pending',
+          status: role === 'superadmin' ? 'approved' : 'pending',
           store_name: role === 'admin' ? storeName : null,
           company_name: role === 'superadmin' ? companyName : null,
           superadmin_email: role === 'admin' ? superAdminEmail : null,
@@ -92,7 +92,7 @@ export function RegisterForm() {
     }
 
     const msg = role === 'superadmin'
-      ? 'Demande soumise ! En attente de validation par l\'équipe.'
+      ? 'Compte superadministrateur créé et approuvé avec succès !'
       : role === 'admin'
       ? 'Compte créé ! En attente d\'approbation par le superadministrateur.'
       : 'Compte créé ! En attente d\'approbation par un administrateur.';
@@ -202,7 +202,7 @@ export function RegisterForm() {
                 </div>
               </div>
               <p className="text-xs text-purple-600 dark:text-purple-400">
-                Votre demande sera examinée avant activation du compte.
+                Votre compte superadministrateur sera activé immédiatement après la création.
               </p>
             </div>
           )}
