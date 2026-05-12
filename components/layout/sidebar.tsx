@@ -19,6 +19,7 @@ import {
   Shield,
   Store,
   QrCode,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -68,6 +69,12 @@ const navigationItems = [
     href: '/notifications',
     icon: Bell,
     adminOnly: true,
+  },
+  
+  {
+    label: 'Chats',
+    href: '/chats',
+    icon: MessageCircle,
   },
   {
     label: 'Magasins',
