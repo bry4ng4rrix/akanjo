@@ -121,7 +121,7 @@ export default function MovementsPage() {
 
       let movementsQuery = supabase
         .from('stock_movements')
-        .select('*, products:product_id(name, sku), users:user_id(full_name), product_sizes:product_size_id(gender, size)')
+        .select('*, products:product_id(name, sku), users:user_id(full_name, stores:store_id(name)), product_sizes:product_size_id(gender, size)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -484,13 +484,14 @@ export default function MovementsPage() {
                     <TableHead className="text-right">Quantité</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Utilisateur</TableHead>
+                    <TableHead>Magasin</TableHead>
                     <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {movements.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         Aucun mouvement enregistré
                       </TableCell>
                     </TableRow>
@@ -520,6 +521,11 @@ export default function MovementsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{m.users?.full_name || 'Système'}</TableCell>
+                      <TableCell className="text-sm">
+                        <Badge variant="outline" className="font-normal border-blue-200 text-blue-700 bg-blue-50/50">
+                          {m.users?.stores?.name || '-'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.notes || '-'}</TableCell>
                     </TableRow>
                   ))}
@@ -580,6 +586,7 @@ function DailyMovementsTable({ movements }: { movements: any[] }) {
                     <TableHead className="text-right">Qté</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Utilisateur</TableHead>
+                    <TableHead>Magasin</TableHead>
                     <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -607,6 +614,11 @@ function DailyMovementsTable({ movements }: { movements: any[] }) {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{m.users?.full_name || 'Système'}</TableCell>
+                      <TableCell className="text-sm">
+                        <Badge variant="outline" className="font-normal border-blue-200 text-blue-700 bg-blue-50/50">
+                          {m.users?.stores?.name || '-'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.notes || '-'}</TableCell>
                     </TableRow>
                   ))}
