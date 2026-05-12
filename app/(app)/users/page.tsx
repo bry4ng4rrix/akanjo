@@ -288,10 +288,18 @@ export default function UsersPage() {
       await new Promise((r) => setTimeout(r, 1000));
 
       if (adminStoreMode === 'existing') {
+        // 1. Update user to link to store
         await supabase
           .from('users')
           .update({ store_id: selectedExistingStore.id, status: 'approved', role: 'admin' })
           .eq('id', signUpData.user.id);
+          
+        // 2. Update store to link to user as owner
+        await supabase
+          .from('stores')
+          .update({ owner_id: signUpData.user.id })
+          .eq('id', selectedExistingStore.id);
+
         toast.success(`Admin créé et assigné à "${selectedExistingStore.name}"`);
       } else {
         let logoUrl: string | null = null;
@@ -307,7 +315,11 @@ export default function UsersPage() {
 
         const { data: newStore, error: storeErr } = await supabase
           .from('stores')
-          .insert({ name: newAdminUser.store_name.trim(), logo_url: logoUrl })
+          .insert({ 
+            name: newAdminUser.store_name.trim(), 
+            logo_url: logoUrl,
+            owner_id: signUpData.user.id // Link owner on creation
+          })
           .select()
           .single();
 
