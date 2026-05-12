@@ -38,7 +38,7 @@ CREATE POLICY "users_select" ON users FOR SELECT
     auth.uid() = id 
     OR get_user_role(auth.uid()) = 'superadmin'
     OR get_user_role(auth.uid()) = 'admin'
-    OR (get_user_role(auth.uid()) = 'magasinier' AND store_id = (SELECT store_id FROM users WHERE id = auth.uid()))
+    OR (get_user_role(auth.uid()) = 'magasinier' AND store_id = get_user_store(auth.uid()))
     OR (get_user_role(auth.uid()) = 'magasinier' AND referred_by = auth.uid())
   );
 

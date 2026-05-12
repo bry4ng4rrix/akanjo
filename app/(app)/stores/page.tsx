@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   Store, Plus, Edit, Trash2, Loader2, Users, Package,
-  DollarSign, RefreshCw, UserPlus, Link as LinkIcon, Search, X,
+  DollarSign, RefreshCw, UserPlus, Link as LinkIcon, Search, X, Eye, BarChart3, TrendingUp, User
 } from 'lucide-react';
 
 const fmt = (n: number) =>
@@ -59,6 +59,53 @@ export default function StoresPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingStore, setDeletingStore] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // View dialog
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewingStore, setViewingStore] = useState<any>(null);
+  const [viewStats, setViewStats] = useState<{topProducts: any[], topEmployees: any[]}>({ topProducts: [], topEmployees: [] });
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const handleViewStore = async (store: any) => {
+    setViewingStore(store);
+    setViewOpen(true);
+    setLoadingStats(true);
+    try {
+      const { data: mvts } = await supabase
+        .from('stock_movements')
+        .select('quantity, product_id, products(name), user_id, users(full_name)')
+        .eq('store_id', store.id)
+        .eq('type', 'exit');
+        
+      const productStats: Record<string, {name: string, qty: number}> = {};
+      const employeeStats: Record<string, {name: string, movements: number}> = {};
+      
+      mvts?.forEach((m: any) => {
+        const pId = m.product_id;
+        const uId = m.user_id;
+        const qty = m.quantity || 0;
+        
+        if (pId) {
+          if (!productStats[pId]) productStats[pId] = { name: m.products?.name || 'Produit inconnu', qty: 0 };
+          productStats[pId].qty += qty;
+        }
+        
+        if (uId) {
+          if (!employeeStats[uId]) employeeStats[uId] = { name: m.users?.full_name || 'Système', movements: 0 };
+          employeeStats[uId].movements += 1;
+        }
+      });
+      
+      const topProducts = Object.values(productStats).sort((a, b) => b.qty - a.qty).slice(0, 5);
+      const topEmployees = Object.values(employeeStats).sort((a, b) => b.movements - a.movements).slice(0, 5);
+      
+      setViewStats({ topProducts, topEmployees });
+    } catch (err) {
+      toast.error('Erreur lors du chargement des statistiques');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   // ── Fetch ──────────────────────────────────────────────────
   const fetchStores = async () => {
@@ -380,6 +427,9 @@ export default function StoresPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleViewStore(store)}>
+                              <Eye className="h-4 w-4 text-blue-600" />
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => { setEditingStore({ ...store, newAdminId: undefined, selectedNewAdmin: undefined }); setEditOpen(true); setEditAdminSearch(''); setShowAdminDropdown(false); }}>
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -658,6 +708,74 @@ export default function StoresPage() {
               <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                 {deleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Suppression…</> : 'Supprimer'}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── View Dialog ────────────────────────────────────── */}
+        <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                Statistiques du magasin : {viewingStore?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Aperçu des performances et activités récentes du magasin
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              {loadingStats ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-orange-500" /> Top 5 Produits (Sorties)
+                    </h3>
+                    {viewStats.topProducts.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">Aucune sortie enregistrée.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {viewStats.topProducts.map((p, i) => (
+                          <div key={i} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border">
+                            <span className="font-medium text-sm">{p.name}</span>
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                              {p.qty} sortis
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <User className="h-4 w-4 text-purple-500" /> Top Employés (Mouvements)
+                    </h3>
+                    {viewStats.topEmployees.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">Aucun mouvement enregistré par les employés.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {viewStats.topEmployees.map((e, i) => (
+                          <div key={i} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border">
+                            <span className="font-medium text-sm">{e.name}</span>
+                            <Badge variant="outline" className="text-purple-700 border-purple-200">
+                              {e.movements} mouvement(s)
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setViewOpen(false)}>Fermer</Button>
             </div>
           </DialogContent>
         </Dialog>

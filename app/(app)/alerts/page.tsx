@@ -36,11 +36,12 @@ interface StockAlert {
   id: string;
   product_id: string;
   size: string;
-  alert_type: 'low_stock' | 'out_of_stock' | 'reorder';
+  alert_type: 'low_stock' | 'out_of_stock' | 'reorder' | 'expiring' | 'expired';
   current_quantity: number;
   reorder_level: number;
   is_active: boolean;
   created_at: string;
+  expiry_date?: string;
   product?: {
     id: string;
     name: string;
@@ -87,7 +88,47 @@ export default function AlertsPage() {
         product: alert.product || null,
       })) || [];
 
-      setAlerts(formattedAlerts);
+      // Fetch expiring products
+      const today = new Date();
+      const thirtyDays = new Date();
+      thirtyDays.setDate(today.getDate() + 30);
+      const thirtyDaysStr = thirtyDays.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+
+      const { data: expiringProducts } = await supabase
+        .from('products')
+        .select('id, name, sku, quantity, expiry_date')
+        .not('expiry_date', 'is', null)
+        .lte('expiry_date', thirtyDaysStr);
+
+      const expiringAlerts = (expiringProducts || []).map((p: any) => {
+        const isExpired = p.expiry_date < todayStr;
+        return {
+          id: `expiry-${p.id}`,
+          product_id: p.id,
+          size: '-',
+          alert_type: isExpired ? 'expired' : 'expiring',
+          current_quantity: p.quantity || 0,
+          reorder_level: 0,
+          is_active: true,
+          created_at: p.expiry_date, // used for sorting
+          expiry_date: p.expiry_date,
+          product: {
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+          }
+        };
+      });
+
+      let allData = [...formattedAlerts];
+      if (filterType === 'all' || filterType === 'active') {
+         allData = [...allData, ...expiringAlerts];
+      }
+      
+      allData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setAlerts(allData);
     } catch (error) {
       console.error('[v0] Error loading alerts:', error);
       toast.error('Erreur lors du chargement des alertes');
@@ -160,6 +201,10 @@ export default function AlertsPage() {
         return <AlertCircle className="w-5 h-5 text-orange-500" />;
       case 'low_stock':
         return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+      case 'expiring':
+        return <AlertCircle className="w-5 h-5 text-purple-500" />;
+      case 'expired':
+        return <AlertTriangle className="w-5 h-5 text-red-600" />;
       default:
         return null;
     }
@@ -173,6 +218,10 @@ export default function AlertsPage() {
         return <Badge className="bg-orange-500">À réapprovisionner</Badge>;
       case 'low_stock':
         return <Badge className="bg-yellow-500">Stock faible</Badge>;
+      case 'expiring':
+        return <Badge className="bg-purple-500">Expirant bientôt</Badge>;
+      case 'expired':
+        return <Badge className="bg-red-600">Expiré</Badge>;
       default:
         return null;
     }
@@ -311,17 +360,23 @@ export default function AlertsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {alert.is_active ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => resolveAlert(alert.id)}
-                            disabled={resolving === alert.id}
-                          >
-                            {resolving === alert.id && (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            )}
-                            Résoudre
-                          </Button>
+                          alert.alert_type === 'expiring' || alert.alert_type === 'expired' ? (
+                            <Button variant="outline" size="sm" onClick={() => window.location.href='/products'}>
+                              Gérer le produit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => resolveAlert(alert.id)}
+                              disabled={resolving === alert.id}
+                            >
+                              {resolving === alert.id && (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              )}
+                              Résoudre
+                            </Button>
+                          )
                         ) : (
                           <Button
                             variant="ghost"

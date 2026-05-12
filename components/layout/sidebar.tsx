@@ -41,11 +41,6 @@ const navigationItems = [
     icon: TrendingUp,
   },
   {
-    label: 'Scanner',
-    href: '/scanner',
-    icon: QrCode,
-  },
-  {
     label: 'Alertes',
     href: '/alerts',
     icon: AlertCircle,
