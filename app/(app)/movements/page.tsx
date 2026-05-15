@@ -515,8 +515,8 @@ export default function MovementsPage() {
                       <TableCell>
                         <Badge variant="outline" className={m.type === 'entry' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}>
                           {m.type === 'entry'
-                            ? <><ArrowUp className="h-3 w-3 mr-1" />Entrée</>
-                            : <><ArrowDown className="h-3 w-3 mr-1" />Sortie</>
+                            ? <><ArrowDown className="h-3 w-3 mr-1" />Entrée</>
+                            : <><ArrowUp className="h-3 w-3 mr-1" />Sortie</>
                           }
                         </Badge>
                       </TableCell>
