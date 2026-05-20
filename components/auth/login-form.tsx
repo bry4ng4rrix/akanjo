@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { djangoClient } from '@/lib/django-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,149 +29,46 @@ function friendlyError(msg: string) {
 
 export function LoginForm() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const response = await djangoClient.auth.login(email, password);
 
-    if (authError) {
-      toast.error(friendlyError(authError.message));
-      setLoading(false);
-      return;
-    }
-
-    // Check user status for employers
-    if (authData.user) {
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('role, status')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (userProfile?.role === 'employer') {
-        if (userProfile?.status === 'pending') {
-          await supabase.auth.signOut();
-          toast.error(ERRORS['Account pending approval']);
-          setLoading(false);
-          return;
-        }
-        if (userProfile?.status === 'rejected') {
-          await supabase.auth.signOut();
-          toast.error(ERRORS['Account rejected']);
-          setLoading(false);
-          return;
-        }
+      // Check user approval status
+      if (!response.user.is_approved) {
+        toast.error(ERRORS['Account pending approval']);
+        setLoading(false);
+        return;
       }
+
+      toast.success('Connexion réussie !');
+      router.push('/dashboard');
+      router.refresh();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Erreur de connexion';
+      toast.error(friendlyError(errorMsg));
+    } finally {
+      setLoading(false);
     }
-
-    toast.success('Connexion réussie !');
-    router.push('/dashboard');
-    router.refresh();
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!resetEmail || resetEmail.length < 5) {
-      toast.error('Veuillez saisir une adresse email valide');
-      return;
-    }
-
-    setResetLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      toast.error(friendlyError(error.message));
-      setResetLoading(false);
-      return;
-    }
-
-    toast.success(ERRORS['Password reset email sent']);
-    setForgotPasswordMode(false);
-    setResetEmail('');
-    setResetLoading(false);
   };
 
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="space-y-1 pb-4">
-        <CardTitle className="text-2xl font-bold">
-          {forgotPasswordMode ? 'Mot de passe oublié' : 'Connexion'}
-        </CardTitle>
-        <CardDescription>
-          {forgotPasswordMode 
-            ? 'Saisissez votre email pour réinitialiser votre mot de passe'
-            : 'Accédez à votre espace E-kajy Entana'
-          }
-        </CardDescription>
+        <CardTitle className="text-2xl font-bold">Connexion</CardTitle>
+        <CardDescription>Accédez à votre espace E-kajy Entana</CardDescription>
       </CardHeader>
 
       <CardContent>
-        {forgotPasswordMode ? (
-          <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
-            {/* Reset Email */}
-            <div className="space-y-1.5">
-              <label htmlFor="reset-email" className="text-sm font-medium">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="reset-email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="vous@example.com"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  disabled={resetLoading}
-                  className="pl-10"
-                  required
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Un lien de réinitialisation sera envoyé à cette adresse
-              </p>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={resetLoading}>
-              {resetLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Envoi…
-                </>
-              ) : (
-                'Envoyer le lien de réinitialisation'
-              )}
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setForgotPasswordMode(false);
-                setResetEmail('');
-              }}
-              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              Retour à la connexion
-            </button>
-          </form>
-        ) : (
-          <>
-          <form onSubmit={handleLogin} className="space-y-4" noValidate>
+        <form onSubmit={handleLogin} className="space-y-4" noValidate>
           {/* Email */}
           <div className="space-y-1.5">
             <label htmlFor="login-email" className="text-sm font-medium">
@@ -195,21 +92,9 @@ export function LoginForm() {
 
           {/* Password */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="login-password" className="text-sm font-medium">
-                Mot de passe
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotPasswordMode(true);
-                  setResetEmail(email);
-                }}
-                className="text-xs text-primary hover:underline"
-              >
-                Mot de passe oublié ?
-              </button>
-            </div>
+            <label htmlFor="login-password" className="text-sm font-medium">
+              Mot de passe
+            </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -253,8 +138,6 @@ export function LoginForm() {
             Créer un compte
           </Link>
         </p>
-        </>
-      )}
       </CardContent>
     </Card>
   );
