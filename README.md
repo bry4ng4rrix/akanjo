@@ -4,7 +4,10 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-success)
 
-Un système moderne et complet de gestion des stocks de vêtements construite avec **Next.js 16**, **React 19**, **Supabase**, et **shadcn/ui**.
+Un système moderne et complet de gestion des stocks de vêtements construite avec **Next.js 16**, **React 19**, **Django Backend**, et **shadcn/ui**.
+
+> **⚡ Migration: Supabase → Django Backend avec JWT Authentication**  
+> Cette version utilise un backend Django personnalisé au lieu de Supabase. Voir [MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md) pour les détails.
 
 ## ✨ Fonctionnalités Principales
 
